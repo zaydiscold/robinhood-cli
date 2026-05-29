@@ -5968,15 +5968,14 @@
     ],
     "risk": "destructive",
     "methods": [
-      "GET",
       "PATCH",
       "DELETE"
     ],
-    "summary": "Manage one recurring buy: GET status, PATCH to resume/pause (body {\"state\":\"active\"} to resume, {\"state\":\"paused\"} to pause), DELETE to remove. Resume/pause is reversible; DELETE is not.",
+    "summary": "Resume/pause a recurring buy (PATCH {\"state\":\"active\"} to resume, {\"state\":\"paused\"} to pause) or DELETE it. Resume/pause reversible; DELETE is not.",
     "bodyKeys": [
       "state"
     ],
-    "note": "inferred 2026-05-29: body shape unverified, confirm via live capture before trusting — state field confirmed on the schedule object; PATCH verb confirmed via OPTIONS.",
+    "note": "VERIFIED 2026-05-29: PATCH {\"state\":\"active\"} resumes (200, next_investment_date populates); state field round-trips. DELETE unverified.",
     "source": "wire-writes 2026-05-29"
   },
   {
@@ -6000,5 +5999,18 @@
     ],
     "note": "inferred 2026-05-29: body shape unverified, confirm via live capture before trusting",
     "source": "wire-writes 2026-05-29"
+  },
+  {
+    "url": "https://bonfire.robinhood.com/recurring_schedules/{0}/",
+    "host": "bonfire.robinhood.com",
+    "categories": [
+      "recurring"
+    ],
+    "risk": "sensitive-read",
+    "methods": [
+      "GET"
+    ],
+    "summary": "Get one recurring schedule (state, next_investment_date, amount).",
+    "source": "fix-recurring-read-gate 2026-05-29"
   }
 ]
