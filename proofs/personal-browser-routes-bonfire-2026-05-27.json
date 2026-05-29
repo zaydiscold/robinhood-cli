@@ -1,0 +1,2048 @@
+
+> @zaydiscold/robinhood-cli@0.1.0 cli /Users/zaydk/Desktop/robinhood-cli/cli
+> tsx src/index.ts api-map browser-routes --host bonfire.robinhood.com --json
+
+{
+  "count": 84,
+  "routes": [
+    {
+      "url": "https://bonfire.robinhood.com/acats/",
+      "host": "bonfire.robinhood.com",
+      "categories": [
+        "money-movement"
+      ],
+      "risk": "sensitive-read",
+      "methods": [
+        "GET"
+      ],
+      "source": "cdp-2026-05-27-stock-account-sanitized",
+      "seenOn": [
+        "account-history",
+        "account-transfers"
+      ],
+      "queryKeys": [
+        "both_directions",
+        "page_size"
+      ],
+      "requestTypes": [
+        "XHR"
+      ]
+    },
+    {
+      "url": "https://bonfire.robinhood.com/account_switcher/instrument/v2/{uuid}/",
+      "host": "bonfire.robinhood.com",
+      "categories": [
+        "unknown"
+      ],
+      "risk": "sensitive-read",
+      "methods": [
+        "GET"
+      ],
+      "source": "cdp-2026-05-27-stock-account-sanitized",
+      "seenOn": [
+        "etf-qqq",
+        "etf-spy",
+        "stock-aapl",
+        "stock-hood",
+        "stock-nvda",
+        "stock-tsla"
+      ],
+      "queryKeys": [],
+      "requestTypes": [
+        "XHR"
+      ]
+    },
+    {
+      "url": "https://bonfire.robinhood.com/accounts/{id}/{id}",
+      "host": "bonfire.robinhood.com",
+      "categories": [
+        "account"
+      ],
+      "risk": "sensitive-read",
+      "methods": [
+        "GET"
+      ],
+      "source": "cdp-2026-05-27-stock-account-sanitized",
+      "seenOn": [
+        "account-root"
+      ],
+      "queryKeys": [],
+      "requestTypes": [
+        "XHR"
+      ]
+    },
+    {
+      "url": "https://bonfire.robinhood.com/accounts/{id}/currency_buying_power/{uuid}/info_alert",
+      "host": "bonfire.robinhood.com",
+      "categories": [
+        "account"
+      ],
+      "risk": "sensitive-read",
+      "methods": [
+        "GET"
+      ],
+      "source": "cdp-2026-05-27-stock-account-sanitized",
+      "seenOn": [
+        "crypto-btc"
+      ],
+      "queryKeys": [],
+      "requestTypes": [
+        "XHR"
+      ]
+    },
+    {
+      "url": "https://bonfire.robinhood.com/accounts/{id}/currency_buying_power/USD",
+      "host": "bonfire.robinhood.com",
+      "categories": [
+        "account"
+      ],
+      "risk": "sensitive-read",
+      "methods": [
+        "GET"
+      ],
+      "source": "cdp-2026-05-27-stock-account-sanitized",
+      "seenOn": [
+        "crypto-btc"
+      ],
+      "queryKeys": [],
+      "requestTypes": [
+        "XHR"
+      ]
+    },
+    {
+      "url": "https://bonfire.robinhood.com/accounts/{id}/instrument_buying_power/{uuid}/",
+      "host": "bonfire.robinhood.com",
+      "categories": [
+        "account"
+      ],
+      "risk": "sensitive-read",
+      "methods": [
+        "GET"
+      ],
+      "source": "cdp-2026-05-27-stock-account-sanitized",
+      "seenOn": [
+        "etf-qqq",
+        "etf-spy",
+        "stock-aapl",
+        "stock-hood",
+        "stock-nvda",
+        "stock-tsla"
+      ],
+      "queryKeys": [],
+      "requestTypes": [
+        "XHR"
+      ]
+    },
+    {
+      "url": "https://bonfire.robinhood.com/accounts/{id}/unified/",
+      "host": "bonfire.robinhood.com",
+      "categories": [
+        "account"
+      ],
+      "risk": "sensitive-read",
+      "methods": [
+        "GET"
+      ],
+      "source": "cdp-2026-05-27-stock-account-sanitized",
+      "seenOn": [
+        "etf-qqq",
+        "etf-spy",
+        "portfolio-home",
+        "stock-aapl",
+        "stock-hood",
+        "stock-nvda",
+        "stock-tsla"
+      ],
+      "queryKeys": [],
+      "requestTypes": [
+        "XHR"
+      ]
+    },
+    {
+      "url": "https://bonfire.robinhood.com/advisory/fees/",
+      "host": "bonfire.robinhood.com",
+      "categories": [
+        "unknown"
+      ],
+      "risk": "sensitive-read",
+      "methods": [
+        "GET"
+      ],
+      "source": "cdp-2026-05-27-stock-account-sanitized",
+      "seenOn": [
+        "account-history"
+      ],
+      "queryKeys": [],
+      "requestTypes": [
+        "XHR"
+      ]
+    },
+    {
+      "url": "https://bonfire.robinhood.com/app-comms/batch/surface/info-banner/",
+      "host": "bonfire.robinhood.com",
+      "categories": [
+        "unknown"
+      ],
+      "risk": "sensitive-read",
+      "methods": [
+        "GET"
+      ],
+      "source": "cdp-2026-05-27-stock-account-sanitized",
+      "seenOn": [
+        "account-root",
+        "account-transfers",
+        "crypto-btc",
+        "etf-qqq",
+        "etf-spy",
+        "portfolio-home",
+        "stock-aapl",
+        "stock-hood",
+        "stock-nvda",
+        "stock-tsla"
+      ],
+      "queryKeys": [
+        "account_number",
+        "currency_pair_id",
+        "instrument_id",
+        "locations"
+      ],
+      "requestTypes": [
+        "XHR"
+      ]
+    },
+    {
+      "url": "https://bonfire.robinhood.com/app-comms/receipt/seen/{uuid}/",
+      "host": "bonfire.robinhood.com",
+      "categories": [
+        "unknown"
+      ],
+      "risk": "write-mutate",
+      "methods": [
+        "POST"
+      ],
+      "source": "cdp-2026-05-27-stock-account-sanitized",
+      "seenOn": [
+        "etf-qqq",
+        "etf-spy",
+        "stock-aapl",
+        "stock-hood",
+        "stock-nvda",
+        "stock-tsla"
+      ],
+      "queryKeys": [],
+      "requestTypes": [
+        "XHR"
+      ]
+    },
+    {
+      "url": "https://bonfire.robinhood.com/app-comms/surface/{id}/",
+      "host": "bonfire.robinhood.com",
+      "categories": [
+        "unknown"
+      ],
+      "risk": "sensitive-read",
+      "methods": [
+        "GET"
+      ],
+      "source": "cdp-2026-05-27-stock-account-sanitized",
+      "seenOn": [
+        "account-contact",
+        "account-documents",
+        "account-history",
+        "account-notifications",
+        "account-root",
+        "account-security",
+        "account-settings",
+        "account-statements",
+        "account-transfers",
+        "crypto-btc",
+        "etf-qqq",
+        "etf-spy",
+        "markets",
+        "portfolio-home",
+        "stock-aapl",
+        "stock-hood",
+        "stock-nvda",
+        "stock-nvda-options",
+        "stock-tsla"
+      ],
+      "queryKeys": [
+        "location"
+      ],
+      "requestTypes": [
+        "XHR"
+      ]
+    },
+    {
+      "url": "https://bonfire.robinhood.com/app-comms/surface/alert-sheet",
+      "host": "bonfire.robinhood.com",
+      "categories": [
+        "unknown"
+      ],
+      "risk": "sensitive-read",
+      "methods": [
+        "GET"
+      ],
+      "source": "cdp-2026-05-27-stock-account-sanitized",
+      "seenOn": [
+        "account-contact",
+        "account-documents",
+        "account-history",
+        "account-notifications",
+        "account-root",
+        "account-security",
+        "account-settings",
+        "account-statements",
+        "account-transfers",
+        "crypto-btc",
+        "etf-qqq",
+        "etf-spy",
+        "portfolio-home",
+        "stock-aapl",
+        "stock-hood",
+        "stock-nvda",
+        "stock-tsla"
+      ],
+      "queryKeys": [
+        "account_number",
+        "currency_pair_id",
+        "instrument_id",
+        "location"
+      ],
+      "requestTypes": [
+        "XHR"
+      ]
+    },
+    {
+      "url": "https://bonfire.robinhood.com/app-comms/surface/hero-card",
+      "host": "bonfire.robinhood.com",
+      "categories": [
+        "unknown"
+      ],
+      "risk": "sensitive-read",
+      "methods": [
+        "GET"
+      ],
+      "source": "cdp-2026-05-27-stock-account-sanitized",
+      "seenOn": [
+        "etf-qqq",
+        "etf-spy",
+        "stock-aapl",
+        "stock-hood",
+        "stock-nvda",
+        "stock-tsla"
+      ],
+      "queryKeys": [
+        "instrument_id",
+        "location"
+      ],
+      "requestTypes": [
+        "XHR"
+      ]
+    },
+    {
+      "url": "https://bonfire.robinhood.com/app-comms/surface/status-banner",
+      "host": "bonfire.robinhood.com",
+      "categories": [
+        "unknown"
+      ],
+      "risk": "sensitive-read",
+      "methods": [
+        "GET"
+      ],
+      "source": "cdp-2026-05-27-stock-account-sanitized",
+      "seenOn": [
+        "account-contact",
+        "account-documents",
+        "account-history",
+        "account-notifications",
+        "account-root",
+        "account-security",
+        "account-settings",
+        "account-statements",
+        "account-transfers",
+        "crypto-btc",
+        "etf-qqq",
+        "etf-spy",
+        "markets",
+        "portfolio-home",
+        "stock-aapl",
+        "stock-hood",
+        "stock-nvda",
+        "stock-nvda-options",
+        "stock-tsla"
+      ],
+      "queryKeys": [],
+      "requestTypes": [
+        "XHR"
+      ]
+    },
+    {
+      "url": "https://bonfire.robinhood.com/crypto-yields/v1/history/",
+      "host": "bonfire.robinhood.com",
+      "categories": [
+        "unknown"
+      ],
+      "risk": "sensitive-read",
+      "methods": [
+        "GET"
+      ],
+      "source": "cdp-2026-05-27-stock-account-sanitized",
+      "seenOn": [
+        "account-history",
+        "crypto-btc"
+      ],
+      "queryKeys": [
+        "account_numbers",
+        "currency_pair_id",
+        "page_size"
+      ],
+      "requestTypes": [
+        "XHR"
+      ]
+    },
+    {
+      "url": "https://bonfire.robinhood.com/crypto/crypto_migrations",
+      "host": "bonfire.robinhood.com",
+      "categories": [
+        "unknown"
+      ],
+      "risk": "sensitive-read",
+      "methods": [
+        "GET"
+      ],
+      "source": "cdp-2026-05-27-stock-account-sanitized",
+      "seenOn": [
+        "account-history"
+      ],
+      "queryKeys": [],
+      "requestTypes": [
+        "XHR"
+      ]
+    },
+    {
+      "url": "https://bonfire.robinhood.com/crypto/cryptobility/{uuid}/",
+      "host": "bonfire.robinhood.com",
+      "categories": [
+        "unknown"
+      ],
+      "risk": "sensitive-read",
+      "methods": [
+        "GET"
+      ],
+      "source": "cdp-2026-05-27-stock-account-sanitized",
+      "seenOn": [
+        "crypto-btc"
+      ],
+      "queryKeys": [],
+      "requestTypes": [
+        "XHR"
+      ]
+    },
+    {
+      "url": "https://bonfire.robinhood.com/crypto/fundamental_stats/{uuid}/",
+      "host": "bonfire.robinhood.com",
+      "categories": [
+        "unknown"
+      ],
+      "risk": "sensitive-read",
+      "methods": [
+        "GET"
+      ],
+      "source": "cdp-2026-05-27-stock-account-sanitized",
+      "seenOn": [
+        "crypto-btc"
+      ],
+      "queryKeys": [],
+      "requestTypes": [
+        "XHR"
+      ]
+    },
+    {
+      "url": "https://bonfire.robinhood.com/crypto/transfers/history/",
+      "host": "bonfire.robinhood.com",
+      "categories": [
+        "unknown"
+      ],
+      "risk": "sensitive-read",
+      "methods": [
+        "GET"
+      ],
+      "source": "cdp-2026-05-27-stock-account-sanitized",
+      "seenOn": [
+        "account-history",
+        "crypto-btc"
+      ],
+      "queryKeys": [
+        "currency_pair_id",
+        "page_size"
+      ],
+      "requestTypes": [
+        "XHR"
+      ]
+    },
+    {
+      "url": "https://bonfire.robinhood.com/edocs_orchestrator/{id}/",
+      "host": "bonfire.robinhood.com",
+      "categories": [
+        "unknown"
+      ],
+      "risk": "sensitive-read",
+      "methods": [
+        "GET"
+      ],
+      "source": "cdp-2026-05-27-stock-account-sanitized",
+      "seenOn": [
+        "account-documents",
+        "account-statements"
+      ],
+      "queryKeys": [],
+      "requestTypes": [
+        "XHR"
+      ]
+    },
+    {
+      "url": "https://bonfire.robinhood.com/education/tool_tips",
+      "host": "bonfire.robinhood.com",
+      "categories": [
+        "unknown"
+      ],
+      "risk": "sensitive-read",
+      "methods": [
+        "GET"
+      ],
+      "source": "cdp-2026-05-27-stock-account-sanitized",
+      "seenOn": [
+        "portfolio-home"
+      ],
+      "queryKeys": [
+        "account_number",
+        "id"
+      ],
+      "requestTypes": [
+        "XHR"
+      ]
+    },
+    {
+      "url": "https://bonfire.robinhood.com/education/tour/",
+      "host": "bonfire.robinhood.com",
+      "categories": [
+        "unknown"
+      ],
+      "risk": "sensitive-read",
+      "methods": [
+        "GET"
+      ],
+      "source": "cdp-2026-05-27-stock-account-sanitized",
+      "seenOn": [
+        "etf-qqq",
+        "etf-spy",
+        "stock-aapl",
+        "stock-hood",
+        "stock-nvda",
+        "stock-tsla"
+      ],
+      "queryKeys": [
+        "screen",
+        "screen_unique_id"
+      ],
+      "requestTypes": [
+        "XHR"
+      ]
+    },
+    {
+      "url": "https://bonfire.robinhood.com/equities/history/{id}",
+      "host": "bonfire.robinhood.com",
+      "categories": [
+        "unknown"
+      ],
+      "risk": "sensitive-read",
+      "methods": [
+        "GET"
+      ],
+      "source": "cdp-2026-05-27-stock-account-sanitized",
+      "seenOn": [
+        "account-history"
+      ],
+      "queryKeys": [],
+      "requestTypes": [
+        "XHR"
+      ]
+    },
+    {
+      "url": "https://bonfire.robinhood.com/equity_trading/order_type_selector/buy/",
+      "host": "bonfire.robinhood.com",
+      "categories": [
+        "orders"
+      ],
+      "risk": "sensitive-read",
+      "methods": [
+        "GET"
+      ],
+      "source": "cdp-2026-05-27-stock-account-sanitized",
+      "seenOn": [
+        "etf-qqq",
+        "etf-spy",
+        "stock-aapl",
+        "stock-hood",
+        "stock-nvda",
+        "stock-tsla"
+      ],
+      "queryKeys": [],
+      "requestTypes": [
+        "XHR"
+      ]
+    },
+    {
+      "url": "https://bonfire.robinhood.com/feature-discovery/features/investing_below_card",
+      "host": "bonfire.robinhood.com",
+      "categories": [
+        "unknown"
+      ],
+      "risk": "sensitive-read",
+      "methods": [
+        "GET"
+      ],
+      "source": "cdp-2026-05-27-stock-account-sanitized",
+      "seenOn": [
+        "portfolio-home"
+      ],
+      "queryKeys": [
+        "account_number"
+      ],
+      "requestTypes": [
+        "XHR"
+      ]
+    },
+    {
+      "url": "https://bonfire.robinhood.com/gold/{id}/",
+      "host": "bonfire.robinhood.com",
+      "categories": [
+        "unknown"
+      ],
+      "risk": "sensitive-read",
+      "methods": [
+        "GET"
+      ],
+      "source": "cdp-2026-05-27-stock-account-sanitized",
+      "seenOn": [
+        "account-history"
+      ],
+      "queryKeys": [
+        "page_size"
+      ],
+      "requestTypes": [
+        "XHR"
+      ]
+    },
+    {
+      "url": "https://bonfire.robinhood.com/gold/get_subscription_list/",
+      "host": "bonfire.robinhood.com",
+      "categories": [
+        "unknown"
+      ],
+      "risk": "sensitive-read",
+      "methods": [
+        "GET"
+      ],
+      "source": "cdp-2026-05-27-stock-account-sanitized",
+      "seenOn": [
+        "account-contact",
+        "account-documents",
+        "account-history",
+        "account-notifications",
+        "account-root",
+        "account-security",
+        "account-settings",
+        "account-statements",
+        "account-transfers",
+        "etf-qqq",
+        "etf-spy",
+        "stock-aapl",
+        "stock-hood",
+        "stock-nvda",
+        "stock-tsla"
+      ],
+      "queryKeys": [
+        "active"
+      ],
+      "requestTypes": [
+        "XHR"
+      ]
+    },
+    {
+      "url": "https://bonfire.robinhood.com/gold/pill",
+      "host": "bonfire.robinhood.com",
+      "categories": [
+        "unknown"
+      ],
+      "risk": "sensitive-read",
+      "methods": [
+        "GET"
+      ],
+      "source": "cdp-2026-05-27-stock-account-sanitized",
+      "seenOn": [
+        "portfolio-home"
+      ],
+      "queryKeys": [
+        "accountNumber"
+      ],
+      "requestTypes": [
+        "XHR"
+      ]
+    },
+    {
+      "url": "https://bonfire.robinhood.com/gold/sweep_flow_splash/",
+      "host": "bonfire.robinhood.com",
+      "categories": [
+        "unknown"
+      ],
+      "risk": "sensitive-read",
+      "methods": [
+        "GET"
+      ],
+      "source": "cdp-2026-05-27-stock-account-sanitized",
+      "seenOn": [
+        "portfolio-home"
+      ],
+      "queryKeys": [
+        "account_number"
+      ],
+      "requestTypes": [
+        "XHR"
+      ]
+    },
+    {
+      "url": "https://bonfire.robinhood.com/home/account_switcher/v2",
+      "host": "bonfire.robinhood.com",
+      "categories": [
+        "unknown"
+      ],
+      "risk": "sensitive-read",
+      "methods": [
+        "GET"
+      ],
+      "source": "cdp-2026-05-27-stock-account-sanitized",
+      "seenOn": [
+        "portfolio-home"
+      ],
+      "queryKeys": [],
+      "requestTypes": [
+        "XHR"
+      ]
+    },
+    {
+      "url": "https://bonfire.robinhood.com/instruments/{uuid}/disclosures/",
+      "host": "bonfire.robinhood.com",
+      "categories": [
+        "marketdata"
+      ],
+      "risk": "read",
+      "methods": [
+        "GET"
+      ],
+      "source": "cdp-2026-05-27-stock-account-sanitized",
+      "seenOn": [
+        "etf-qqq",
+        "etf-spy",
+        "stock-aapl",
+        "stock-hood",
+        "stock-nvda",
+        "stock-tsla"
+      ],
+      "queryKeys": [
+        "account_number"
+      ],
+      "requestTypes": [
+        "XHR"
+      ]
+    },
+    {
+      "url": "https://bonfire.robinhood.com/instruments/{uuid}/etp-details/",
+      "host": "bonfire.robinhood.com",
+      "categories": [
+        "marketdata"
+      ],
+      "risk": "read",
+      "methods": [
+        "GET"
+      ],
+      "source": "cdp-2026-05-27-stock-account-sanitized",
+      "seenOn": [
+        "etf-qqq",
+        "etf-spy"
+      ],
+      "queryKeys": [],
+      "requestTypes": [
+        "XHR"
+      ]
+    },
+    {
+      "url": "https://bonfire.robinhood.com/instruments/{uuid}/historical-chart/",
+      "host": "bonfire.robinhood.com",
+      "categories": [
+        "marketdata"
+      ],
+      "risk": "read",
+      "methods": [
+        "GET"
+      ],
+      "source": "cdp-2026-05-27-stock-account-sanitized",
+      "seenOn": [
+        "etf-qqq",
+        "etf-spy",
+        "stock-aapl",
+        "stock-hood",
+        "stock-nvda",
+        "stock-tsla"
+      ],
+      "queryKeys": [
+        "display_span",
+        "hide_extended_hours"
+      ],
+      "requestTypes": [
+        "XHR"
+      ]
+    },
+    {
+      "url": "https://bonfire.robinhood.com/instruments/{uuid}/margin-requirements/",
+      "host": "bonfire.robinhood.com",
+      "categories": [
+        "account",
+        "marketdata"
+      ],
+      "risk": "sensitive-read",
+      "methods": [
+        "GET"
+      ],
+      "source": "cdp-2026-05-27-stock-account-sanitized",
+      "seenOn": [
+        "etf-qqq",
+        "etf-spy",
+        "stock-aapl",
+        "stock-hood",
+        "stock-nvda",
+        "stock-tsla"
+      ],
+      "queryKeys": [
+        "account_number"
+      ],
+      "requestTypes": [
+        "XHR"
+      ]
+    },
+    {
+      "url": "https://bonfire.robinhood.com/instruments/{uuid}/qa/event-info/",
+      "host": "bonfire.robinhood.com",
+      "categories": [
+        "marketdata"
+      ],
+      "risk": "read",
+      "methods": [
+        "GET"
+      ],
+      "source": "cdp-2026-05-27-stock-account-sanitized",
+      "seenOn": [
+        "etf-qqq",
+        "etf-spy",
+        "stock-aapl",
+        "stock-hood",
+        "stock-nvda",
+        "stock-tsla"
+      ],
+      "queryKeys": [],
+      "requestTypes": [
+        "XHR"
+      ]
+    },
+    {
+      "url": "https://bonfire.robinhood.com/instruments/{uuid}/qa/events-section/",
+      "host": "bonfire.robinhood.com",
+      "categories": [
+        "marketdata"
+      ],
+      "risk": "read",
+      "methods": [
+        "GET"
+      ],
+      "source": "cdp-2026-05-27-stock-account-sanitized",
+      "seenOn": [
+        "etf-qqq",
+        "etf-spy",
+        "stock-aapl",
+        "stock-hood",
+        "stock-nvda",
+        "stock-tsla"
+      ],
+      "queryKeys": [],
+      "requestTypes": [
+        "XHR"
+      ]
+    },
+    {
+      "url": "https://bonfire.robinhood.com/instruments/{uuid}/stock_detail/",
+      "host": "bonfire.robinhood.com",
+      "categories": [
+        "marketdata"
+      ],
+      "risk": "read",
+      "methods": [
+        "GET"
+      ],
+      "source": "cdp-2026-05-27-stock-account-sanitized",
+      "seenOn": [
+        "stock-hood"
+      ],
+      "queryKeys": [],
+      "requestTypes": [
+        "XHR"
+      ]
+    },
+    {
+      "url": "https://bonfire.robinhood.com/instruments/{uuid}/v2/warnings/",
+      "host": "bonfire.robinhood.com",
+      "categories": [
+        "marketdata"
+      ],
+      "risk": "read",
+      "methods": [
+        "GET"
+      ],
+      "source": "cdp-2026-05-27-stock-account-sanitized",
+      "seenOn": [
+        "etf-qqq",
+        "etf-spy",
+        "stock-aapl",
+        "stock-hood",
+        "stock-nvda",
+        "stock-tsla"
+      ],
+      "queryKeys": [],
+      "requestTypes": [
+        "XHR"
+      ]
+    },
+    {
+      "url": "https://bonfire.robinhood.com/instruments/chart-bounds/",
+      "host": "bonfire.robinhood.com",
+      "categories": [
+        "marketdata"
+      ],
+      "risk": "read",
+      "methods": [
+        "GET"
+      ],
+      "source": "cdp-2026-05-27-stock-account-sanitized",
+      "seenOn": [
+        "etf-qqq",
+        "etf-spy",
+        "portfolio-home",
+        "stock-aapl",
+        "stock-hood",
+        "stock-nvda",
+        "stock-tsla"
+      ],
+      "queryKeys": [
+        "now"
+      ],
+      "requestTypes": [
+        "XHR"
+      ]
+    },
+    {
+      "url": "https://bonfire.robinhood.com/instruments/spans/",
+      "host": "bonfire.robinhood.com",
+      "categories": [
+        "marketdata"
+      ],
+      "risk": "read",
+      "methods": [
+        "GET"
+      ],
+      "source": "cdp-2026-05-27-stock-account-sanitized",
+      "seenOn": [
+        "etf-qqq",
+        "etf-spy",
+        "stock-aapl",
+        "stock-hood",
+        "stock-nvda",
+        "stock-tsla"
+      ],
+      "queryKeys": [],
+      "requestTypes": [
+        "XHR"
+      ]
+    },
+    {
+      "url": "https://bonfire.robinhood.com/margin/{id}/",
+      "host": "bonfire.robinhood.com",
+      "categories": [
+        "account"
+      ],
+      "risk": "sensitive-read",
+      "methods": [
+        "GET"
+      ],
+      "source": "cdp-2026-05-27-stock-account-sanitized",
+      "seenOn": [
+        "portfolio-home"
+      ],
+      "queryKeys": [
+        "account_number"
+      ],
+      "requestTypes": [
+        "XHR"
+      ]
+    },
+    {
+      "url": "https://bonfire.robinhood.com/margin/{id}/buying_power_hub_view",
+      "host": "bonfire.robinhood.com",
+      "categories": [
+        "account"
+      ],
+      "risk": "sensitive-read",
+      "methods": [
+        "GET"
+      ],
+      "source": "cdp-2026-05-27-stock-account-sanitized",
+      "seenOn": [
+        "portfolio-home"
+      ],
+      "queryKeys": [],
+      "requestTypes": [
+        "XHR"
+      ]
+    },
+    {
+      "url": "https://bonfire.robinhood.com/margin/{id}/eligibility",
+      "host": "bonfire.robinhood.com",
+      "categories": [
+        "account",
+        "telemetry-config"
+      ],
+      "risk": "sensitive-read",
+      "methods": [
+        "GET"
+      ],
+      "source": "cdp-2026-05-27-stock-account-sanitized",
+      "seenOn": [
+        "etf-qqq",
+        "etf-spy",
+        "stock-aapl",
+        "stock-hood",
+        "stock-nvda",
+        "stock-tsla"
+      ],
+      "queryKeys": [
+        "skip_min_2k_equity_check"
+      ],
+      "requestTypes": [
+        "XHR"
+      ]
+    },
+    {
+      "url": "https://bonfire.robinhood.com/margin/{id}/investing_info/",
+      "host": "bonfire.robinhood.com",
+      "categories": [
+        "account"
+      ],
+      "risk": "sensitive-read",
+      "methods": [
+        "GET"
+      ],
+      "source": "cdp-2026-05-27-stock-account-sanitized",
+      "seenOn": [
+        "account-root"
+      ],
+      "queryKeys": [
+        "display_currency"
+      ],
+      "requestTypes": [
+        "XHR"
+      ]
+    },
+    {
+      "url": "https://bonfire.robinhood.com/margin/{id}/settings/",
+      "host": "bonfire.robinhood.com",
+      "categories": [
+        "account"
+      ],
+      "risk": "sensitive-read",
+      "methods": [
+        "GET"
+      ],
+      "source": "cdp-2026-05-27-stock-account-sanitized",
+      "seenOn": [
+        "account-root",
+        "crypto-btc",
+        "etf-qqq",
+        "etf-spy",
+        "stock-aapl",
+        "stock-hood",
+        "stock-nvda",
+        "stock-tsla"
+      ],
+      "queryKeys": [],
+      "requestTypes": [
+        "XHR"
+      ]
+    },
+    {
+      "url": "https://bonfire.robinhood.com/market_indices",
+      "host": "bonfire.robinhood.com",
+      "categories": [
+        "unknown"
+      ],
+      "risk": "sensitive-read",
+      "methods": [
+        "GET"
+      ],
+      "source": "cdp-2026-05-27-stock-account-sanitized",
+      "seenOn": [
+        "portfolio-home"
+      ],
+      "queryKeys": [
+        "keys"
+      ],
+      "requestTypes": [
+        "XHR"
+      ]
+    },
+    {
+      "url": "https://bonfire.robinhood.com/onboarding/{id}/",
+      "host": "bonfire.robinhood.com",
+      "categories": [
+        "unknown"
+      ],
+      "risk": "sensitive-read",
+      "methods": [
+        "GET"
+      ],
+      "source": "cdp-2026-05-27-stock-account-sanitized",
+      "seenOn": [
+        "account-contact",
+        "account-documents",
+        "account-history",
+        "account-notifications",
+        "account-root",
+        "account-security",
+        "account-settings",
+        "account-statements",
+        "account-transfers",
+        "crypto-btc",
+        "etf-qqq",
+        "etf-spy",
+        "markets",
+        "portfolio-home",
+        "stock-aapl",
+        "stock-hood",
+        "stock-nvda",
+        "stock-nvda-options",
+        "stock-tsla"
+      ],
+      "queryKeys": [],
+      "requestTypes": [
+        "XHR"
+      ]
+    },
+    {
+      "url": "https://bonfire.robinhood.com/p2p/treatment/",
+      "host": "bonfire.robinhood.com",
+      "categories": [
+        "unknown"
+      ],
+      "risk": "sensitive-read",
+      "methods": [
+        "GET"
+      ],
+      "source": "cdp-2026-05-27-stock-account-sanitized",
+      "seenOn": [
+        "account-history",
+        "account-security"
+      ],
+      "queryKeys": [],
+      "requestTypes": [
+        "XHR"
+      ]
+    },
+    {
+      "url": "https://bonfire.robinhood.com/payment_instruments/v2/",
+      "host": "bonfire.robinhood.com",
+      "categories": [
+        "unknown"
+      ],
+      "risk": "sensitive-read",
+      "methods": [
+        "GET"
+      ],
+      "source": "cdp-2026-05-27-stock-account-sanitized",
+      "seenOn": [
+        "account-transfers"
+      ],
+      "queryKeys": [
+        "types"
+      ],
+      "requestTypes": [
+        "XHR"
+      ]
+    },
+    {
+      "url": "https://bonfire.robinhood.com/payment_instruments/v2/debitcard/{uuid}/",
+      "host": "bonfire.robinhood.com",
+      "categories": [
+        "unknown"
+      ],
+      "risk": "sensitive-read",
+      "methods": [
+        "GET"
+      ],
+      "source": "cdp-2026-05-27-stock-account-sanitized",
+      "seenOn": [
+        "account-transfers"
+      ],
+      "queryKeys": [],
+      "requestTypes": [
+        "XHR"
+      ]
+    },
+    {
+      "url": "https://bonfire.robinhood.com/paymenthub/unified_transfers/",
+      "host": "bonfire.robinhood.com",
+      "categories": [
+        "unknown"
+      ],
+      "risk": "sensitive-read",
+      "methods": [
+        "GET"
+      ],
+      "source": "cdp-2026-05-27-stock-account-sanitized",
+      "seenOn": [
+        "account-history",
+        "account-transfers"
+      ],
+      "queryKeys": [
+        "page_size"
+      ],
+      "requestTypes": [
+        "XHR"
+      ]
+    },
+    {
+      "url": "https://bonfire.robinhood.com/paymenthub/unified_transfers/{uuid}/contribution/",
+      "host": "bonfire.robinhood.com",
+      "categories": [
+        "unknown"
+      ],
+      "risk": "sensitive-read",
+      "methods": [
+        "GET"
+      ],
+      "source": "cdp-2026-05-27-stock-account-sanitized",
+      "seenOn": [
+        "account-transfers"
+      ],
+      "queryKeys": [],
+      "requestTypes": [
+        "XHR"
+      ]
+    },
+    {
+      "url": "https://bonfire.robinhood.com/portfolio/{id}/positions_v2",
+      "host": "bonfire.robinhood.com",
+      "categories": [
+        "unknown"
+      ],
+      "risk": "sensitive-read",
+      "methods": [
+        "GET"
+      ],
+      "source": "cdp-2026-05-27-stock-account-sanitized",
+      "seenOn": [
+        "portfolio-home"
+      ],
+      "queryKeys": [
+        "instrument_type",
+        "positions_location"
+      ],
+      "requestTypes": [
+        "XHR"
+      ]
+    },
+    {
+      "url": "https://bonfire.robinhood.com/portfolio/acats/bonus-promo-info/",
+      "host": "bonfire.robinhood.com",
+      "categories": [
+        "money-movement"
+      ],
+      "risk": "sensitive-read",
+      "methods": [
+        "GET"
+      ],
+      "source": "cdp-2026-05-27-stock-account-sanitized",
+      "seenOn": [
+        "account-transfers"
+      ],
+      "queryKeys": [],
+      "requestTypes": [
+        "XHR"
+      ]
+    },
+    {
+      "url": "https://bonfire.robinhood.com/portfolio/account/{id}/live",
+      "host": "bonfire.robinhood.com",
+      "categories": [
+        "account"
+      ],
+      "risk": "sensitive-read",
+      "methods": [
+        "GET"
+      ],
+      "source": "cdp-2026-05-27-stock-account-sanitized",
+      "seenOn": [
+        "account-contact",
+        "account-documents",
+        "account-history",
+        "account-notifications",
+        "account-root",
+        "account-security",
+        "account-settings",
+        "account-statements",
+        "account-transfers",
+        "crypto-btc",
+        "etf-qqq",
+        "etf-spy",
+        "markets",
+        "portfolio-home",
+        "stock-aapl",
+        "stock-hood",
+        "stock-nvda",
+        "stock-nvda-options",
+        "stock-tsla"
+      ],
+      "queryKeys": [
+        "display_currency"
+      ],
+      "requestTypes": [
+        "XHR"
+      ]
+    },
+    {
+      "url": "https://bonfire.robinhood.com/portfolio/performance/{id}",
+      "host": "bonfire.robinhood.com",
+      "categories": [
+        "unknown"
+      ],
+      "risk": "sensitive-read",
+      "methods": [
+        "GET"
+      ],
+      "source": "cdp-2026-05-27-stock-account-sanitized",
+      "seenOn": [
+        "portfolio-home"
+      ],
+      "queryKeys": [
+        "chart_style",
+        "chart_type",
+        "display_span",
+        "include_all_hours"
+      ],
+      "requestTypes": [
+        "XHR"
+      ]
+    },
+    {
+      "url": "https://bonfire.robinhood.com/portfolio/performance/{id}/settings_v2/",
+      "host": "bonfire.robinhood.com",
+      "categories": [
+        "unknown"
+      ],
+      "risk": "sensitive-read",
+      "methods": [
+        "GET"
+      ],
+      "source": "cdp-2026-05-27-stock-account-sanitized",
+      "seenOn": [
+        "portfolio-home"
+      ],
+      "queryKeys": [],
+      "requestTypes": [
+        "XHR"
+      ]
+    },
+    {
+      "url": "https://bonfire.robinhood.com/psp/eligible_programs",
+      "host": "bonfire.robinhood.com",
+      "categories": [
+        "unknown"
+      ],
+      "risk": "sensitive-read",
+      "methods": [
+        "GET"
+      ],
+      "source": "cdp-2026-05-27-stock-account-sanitized",
+      "seenOn": [
+        "portfolio-home"
+      ],
+      "queryKeys": [
+        "account_numbers"
+      ],
+      "requestTypes": [
+        "XHR"
+      ]
+    },
+    {
+      "url": "https://bonfire.robinhood.com/psp/gifts/history/",
+      "host": "bonfire.robinhood.com",
+      "categories": [
+        "unknown"
+      ],
+      "risk": "sensitive-read",
+      "methods": [
+        "GET"
+      ],
+      "source": "cdp-2026-05-27-stock-account-sanitized",
+      "seenOn": [
+        "account-history",
+        "etf-qqq",
+        "etf-spy",
+        "stock-aapl",
+        "stock-hood",
+        "stock-nvda",
+        "stock-tsla"
+      ],
+      "queryKeys": [
+        "account_numbers"
+      ],
+      "requestTypes": [
+        "XHR"
+      ]
+    },
+    {
+      "url": "https://bonfire.robinhood.com/questionnaire/questionnaire-completed/",
+      "host": "bonfire.robinhood.com",
+      "categories": [
+        "unknown"
+      ],
+      "risk": "sensitive-read",
+      "methods": [
+        "GET"
+      ],
+      "source": "cdp-2026-05-27-stock-account-sanitized",
+      "seenOn": [
+        "etf-qqq",
+        "etf-spy",
+        "stock-aapl",
+        "stock-hood",
+        "stock-nvda",
+        "stock-tsla"
+      ],
+      "queryKeys": [
+        "account_number",
+        "context"
+      ],
+      "requestTypes": [
+        "XHR"
+      ]
+    },
+    {
+      "url": "https://bonfire.robinhood.com/rad/gifting/gifts",
+      "host": "bonfire.robinhood.com",
+      "categories": [
+        "unknown"
+      ],
+      "risk": "sensitive-read",
+      "methods": [
+        "GET"
+      ],
+      "source": "cdp-2026-05-27-stock-account-sanitized",
+      "seenOn": [
+        "account-history"
+      ],
+      "queryKeys": [
+        "pageSize"
+      ],
+      "requestTypes": [
+        "XHR"
+      ]
+    },
+    {
+      "url": "https://bonfire.robinhood.com/recurring_schedules/",
+      "host": "bonfire.robinhood.com",
+      "categories": [
+        "orders"
+      ],
+      "risk": "sensitive-read",
+      "methods": [
+        "GET"
+      ],
+      "source": "cdp-2026-05-27-stock-account-sanitized",
+      "seenOn": [
+        "crypto-btc",
+        "etf-qqq",
+        "etf-spy",
+        "portfolio-home",
+        "stock-aapl",
+        "stock-hood",
+        "stock-nvda",
+        "stock-tsla"
+      ],
+      "queryKeys": [
+        "asset_types",
+        "instrument_id"
+      ],
+      "requestTypes": [
+        "XHR"
+      ]
+    },
+    {
+      "url": "https://bonfire.robinhood.com/recurring_schedules/equity/next_investment_date/",
+      "host": "bonfire.robinhood.com",
+      "categories": [
+        "orders"
+      ],
+      "risk": "sensitive-read",
+      "methods": [
+        "GET"
+      ],
+      "source": "cdp-2026-05-27-stock-account-sanitized",
+      "seenOn": [
+        "etf-qqq",
+        "etf-spy",
+        "stock-aapl",
+        "stock-hood",
+        "stock-nvda",
+        "stock-tsla"
+      ],
+      "queryKeys": [
+        "frequency",
+        "start_date"
+      ],
+      "requestTypes": [
+        "XHR"
+      ]
+    },
+    {
+      "url": "https://bonfire.robinhood.com/recurring_tradability/equity/{uuid}/",
+      "host": "bonfire.robinhood.com",
+      "categories": [
+        "orders"
+      ],
+      "risk": "sensitive-read",
+      "methods": [
+        "GET"
+      ],
+      "source": "cdp-2026-05-27-stock-account-sanitized",
+      "seenOn": [
+        "etf-qqq",
+        "etf-spy",
+        "stock-aapl",
+        "stock-hood",
+        "stock-nvda",
+        "stock-tsla"
+      ],
+      "queryKeys": [
+        "account_number"
+      ],
+      "requestTypes": [
+        "XHR"
+      ]
+    },
+    {
+      "url": "https://bonfire.robinhood.com/recurring_trade_logs/",
+      "host": "bonfire.robinhood.com",
+      "categories": [
+        "unknown"
+      ],
+      "risk": "sensitive-read",
+      "methods": [
+        "GET"
+      ],
+      "source": "cdp-2026-05-27-stock-account-sanitized",
+      "seenOn": [
+        "account-history",
+        "crypto-btc",
+        "etf-qqq",
+        "etf-spy",
+        "stock-aapl",
+        "stock-hood",
+        "stock-nvda",
+        "stock-tsla"
+      ],
+      "queryKeys": [
+        "account_number",
+        "asset_types",
+        "disabled",
+        "instrument_id",
+        "page_size"
+      ],
+      "requestTypes": [
+        "XHR"
+      ]
+    },
+    {
+      "url": "https://bonfire.robinhood.com/region",
+      "host": "bonfire.robinhood.com",
+      "categories": [
+        "unknown"
+      ],
+      "risk": "sensitive-read",
+      "methods": [
+        "GET"
+      ],
+      "source": "cdp-2026-05-27-stock-account-sanitized",
+      "seenOn": [
+        "account-contact",
+        "account-documents",
+        "account-history",
+        "account-notifications",
+        "account-root",
+        "account-security",
+        "account-settings",
+        "account-statements",
+        "account-transfers",
+        "crypto-btc",
+        "etf-qqq",
+        "etf-spy",
+        "markets",
+        "portfolio-home",
+        "stock-aapl",
+        "stock-hood",
+        "stock-nvda",
+        "stock-nvda-options",
+        "stock-tsla"
+      ],
+      "queryKeys": [],
+      "requestTypes": [
+        "Fetch,Other"
+      ]
+    },
+    {
+      "url": "https://bonfire.robinhood.com/retirement/history/",
+      "host": "bonfire.robinhood.com",
+      "categories": [
+        "unknown"
+      ],
+      "risk": "sensitive-read",
+      "methods": [
+        "GET"
+      ],
+      "source": "cdp-2026-05-27-stock-account-sanitized",
+      "seenOn": [
+        "account-history"
+      ],
+      "queryKeys": [],
+      "requestTypes": [
+        "XHR"
+      ]
+    },
+    {
+      "url": "https://bonfire.robinhood.com/rewards/reward/gift/crypto/list/",
+      "host": "bonfire.robinhood.com",
+      "categories": [
+        "unknown"
+      ],
+      "risk": "sensitive-read",
+      "methods": [
+        "GET"
+      ],
+      "source": "cdp-2026-05-27-stock-account-sanitized",
+      "seenOn": [
+        "account-history"
+      ],
+      "queryKeys": [
+        "page_size"
+      ],
+      "requestTypes": [
+        "XHR"
+      ]
+    },
+    {
+      "url": "https://bonfire.robinhood.com/rewards/reward/stocks/",
+      "host": "bonfire.robinhood.com",
+      "categories": [
+        "unknown"
+      ],
+      "risk": "sensitive-read",
+      "methods": [
+        "GET"
+      ],
+      "source": "cdp-2026-05-27-stock-account-sanitized",
+      "seenOn": [
+        "account-history",
+        "crypto-btc"
+      ],
+      "queryKeys": [
+        "page_size"
+      ],
+      "requestTypes": [
+        "XHR"
+      ]
+    },
+    {
+      "url": "https://bonfire.robinhood.com/rewards/sdp_referral/card/{uuid}",
+      "host": "bonfire.robinhood.com",
+      "categories": [
+        "unknown"
+      ],
+      "risk": "sensitive-read",
+      "methods": [
+        "GET"
+      ],
+      "source": "cdp-2026-05-27-stock-account-sanitized",
+      "seenOn": [
+        "etf-qqq",
+        "etf-spy",
+        "stock-aapl",
+        "stock-hood",
+        "stock-nvda",
+        "stock-tsla"
+      ],
+      "queryKeys": [],
+      "requestTypes": [
+        "XHR"
+      ]
+    },
+    {
+      "url": "https://bonfire.robinhood.com/rhy/accounts/",
+      "host": "bonfire.robinhood.com",
+      "categories": [
+        "account"
+      ],
+      "risk": "sensitive-read",
+      "methods": [
+        "GET"
+      ],
+      "source": "cdp-2026-05-27-stock-account-sanitized",
+      "seenOn": [
+        "account-contact",
+        "account-documents",
+        "account-history",
+        "account-notifications",
+        "account-root",
+        "account-security",
+        "account-settings",
+        "account-statements",
+        "account-transfers"
+      ],
+      "queryKeys": [],
+      "requestTypes": [
+        "XHR"
+      ]
+    },
+    {
+      "url": "https://bonfire.robinhood.com/screeners",
+      "host": "bonfire.robinhood.com",
+      "categories": [
+        "unknown"
+      ],
+      "risk": "sensitive-read",
+      "methods": [
+        "GET"
+      ],
+      "source": "cdp-2026-05-27-stock-account-sanitized",
+      "seenOn": [
+        "account-contact",
+        "account-documents",
+        "account-history",
+        "account-notifications",
+        "account-root",
+        "account-security",
+        "account-settings",
+        "account-statements",
+        "account-transfers",
+        "crypto-btc",
+        "etf-qqq",
+        "etf-spy",
+        "portfolio-home",
+        "stock-aapl",
+        "stock-hood",
+        "stock-nvda",
+        "stock-tsla"
+      ],
+      "queryKeys": [
+        "include_filters"
+      ],
+      "requestTypes": [
+        "XHR"
+      ]
+    },
+    {
+      "url": "https://bonfire.robinhood.com/screeners/presets/",
+      "host": "bonfire.robinhood.com",
+      "categories": [
+        "unknown"
+      ],
+      "risk": "sensitive-read",
+      "methods": [
+        "GET"
+      ],
+      "source": "cdp-2026-05-27-stock-account-sanitized",
+      "seenOn": [
+        "account-contact",
+        "account-documents",
+        "account-history",
+        "account-notifications",
+        "account-root",
+        "account-security",
+        "account-settings",
+        "account-statements",
+        "account-transfers",
+        "crypto-btc",
+        "etf-qqq",
+        "etf-spy",
+        "portfolio-home",
+        "stock-aapl",
+        "stock-hood",
+        "stock-nvda",
+        "stock-tsla"
+      ],
+      "queryKeys": [],
+      "requestTypes": [
+        "XHR"
+      ]
+    },
+    {
+      "url": "https://bonfire.robinhood.com/settings_page//account_contact/",
+      "host": "bonfire.robinhood.com",
+      "categories": [
+        "unknown"
+      ],
+      "risk": "sensitive-read",
+      "methods": [
+        "GET"
+      ],
+      "source": "cdp-2026-05-27-stock-account-sanitized",
+      "seenOn": [
+        "account-contact",
+        "account-notifications",
+        "account-settings"
+      ],
+      "queryKeys": [],
+      "requestTypes": [
+        "XHR"
+      ]
+    },
+    {
+      "url": "https://bonfire.robinhood.com/settings_page//account_preferences/",
+      "host": "bonfire.robinhood.com",
+      "categories": [
+        "unknown"
+      ],
+      "risk": "sensitive-read",
+      "methods": [
+        "GET"
+      ],
+      "source": "cdp-2026-05-27-stock-account-sanitized",
+      "seenOn": [
+        "account-contact",
+        "account-notifications",
+        "account-security",
+        "account-settings"
+      ],
+      "queryKeys": [],
+      "requestTypes": [
+        "XHR"
+      ]
+    },
+    {
+      "url": "https://bonfire.robinhood.com/settings_page//notifications/",
+      "host": "bonfire.robinhood.com",
+      "categories": [
+        "unknown"
+      ],
+      "risk": "sensitive-read",
+      "methods": [
+        "GET"
+      ],
+      "source": "cdp-2026-05-27-stock-account-sanitized",
+      "seenOn": [
+        "account-notifications"
+      ],
+      "queryKeys": [],
+      "requestTypes": [
+        "XHR"
+      ]
+    },
+    {
+      "url": "https://bonfire.robinhood.com/slip/{id}/",
+      "host": "bonfire.robinhood.com",
+      "categories": [
+        "unknown"
+      ],
+      "risk": "sensitive-read",
+      "methods": [
+        "GET"
+      ],
+      "source": "cdp-2026-05-27-stock-account-sanitized",
+      "seenOn": [
+        "portfolio-home"
+      ],
+      "queryKeys": [],
+      "requestTypes": [
+        "XHR"
+      ]
+    },
+    {
+      "url": "https://bonfire.robinhood.com/slip/eligibility/",
+      "host": "bonfire.robinhood.com",
+      "categories": [
+        "telemetry-config"
+      ],
+      "risk": "sensitive-read",
+      "methods": [
+        "GET"
+      ],
+      "source": "cdp-2026-05-27-stock-account-sanitized",
+      "seenOn": [
+        "etf-qqq",
+        "etf-spy",
+        "stock-aapl",
+        "stock-hood",
+        "stock-nvda",
+        "stock-tsla"
+      ],
+      "queryKeys": [
+        "account_number"
+      ],
+      "requestTypes": [
+        "XHR"
+      ]
+    },
+    {
+      "url": "https://bonfire.robinhood.com/slip/hub-card/",
+      "host": "bonfire.robinhood.com",
+      "categories": [
+        "unknown"
+      ],
+      "risk": "sensitive-read",
+      "methods": [
+        "GET"
+      ],
+      "source": "cdp-2026-05-27-stock-account-sanitized",
+      "seenOn": [
+        "account-root"
+      ],
+      "queryKeys": [
+        "account_number"
+      ],
+      "requestTypes": [
+        "XHR"
+      ]
+    },
+    {
+      "url": "https://bonfire.robinhood.com/sms/margin/{id}/{id}",
+      "host": "bonfire.robinhood.com",
+      "categories": [
+        "account"
+      ],
+      "risk": "sensitive-read",
+      "methods": [
+        "GET"
+      ],
+      "source": "cdp-2026-05-27-stock-account-sanitized",
+      "seenOn": [
+        "account-root",
+        "etf-qqq",
+        "etf-spy",
+        "stock-aapl",
+        "stock-hood",
+        "stock-nvda",
+        "stock-tsla"
+      ],
+      "queryKeys": [
+        "context"
+      ],
+      "requestTypes": [
+        "XHR"
+      ]
+    },
+    {
+      "url": "https://bonfire.robinhood.com/tax_info/instrument/{uuid}/withholding_status/",
+      "host": "bonfire.robinhood.com",
+      "categories": [
+        "unknown"
+      ],
+      "risk": "sensitive-read",
+      "methods": [
+        "GET"
+      ],
+      "source": "cdp-2026-05-27-stock-account-sanitized",
+      "seenOn": [
+        "etf-qqq",
+        "etf-spy",
+        "stock-aapl",
+        "stock-hood",
+        "stock-nvda",
+        "stock-tsla"
+      ],
+      "queryKeys": [],
+      "requestTypes": [
+        "XHR"
+      ]
+    },
+    {
+      "url": "https://bonfire.robinhood.com/tax_info/withheld_amount/",
+      "host": "bonfire.robinhood.com",
+      "categories": [
+        "unknown"
+      ],
+      "risk": "sensitive-read",
+      "methods": [
+        "GET"
+      ],
+      "source": "cdp-2026-05-27-stock-account-sanitized",
+      "seenOn": [
+        "account-history",
+        "etf-spy",
+        "stock-aapl",
+        "stock-nvda",
+        "stock-tsla"
+      ],
+      "queryKeys": [
+        "account_number",
+        "trigger_ids"
+      ],
+      "requestTypes": [
+        "XHR"
+      ]
+    },
+    {
+      "url": "https://bonfire.robinhood.com/transfer/accounts/",
+      "host": "bonfire.robinhood.com",
+      "categories": [
+        "account"
+      ],
+      "risk": "sensitive-read",
+      "methods": [
+        "GET"
+      ],
+      "source": "cdp-2026-05-27-stock-account-sanitized",
+      "seenOn": [
+        "account-transfers"
+      ],
+      "queryKeys": [],
+      "requestTypes": [
+        "XHR"
+      ]
+    },
+    {
+      "url": "https://bonfire.robinhood.com/user_status/stripe/",
+      "host": "bonfire.robinhood.com",
+      "categories": [
+        "unknown"
+      ],
+      "risk": "sensitive-read",
+      "methods": [
+        "GET"
+      ],
+      "source": "cdp-2026-05-27-stock-account-sanitized",
+      "seenOn": [
+        "account-transfers"
+      ],
+      "queryKeys": [],
+      "requestTypes": [
+        "XHR"
+      ]
+    }
+  ]
+}

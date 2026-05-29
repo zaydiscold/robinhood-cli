@@ -1,0 +1,12 @@
+
+> robinhood-cli-workspace@ build /Users/zaydk/Desktop/robinhood-cli
+> pnpm --filter @zaydiscold/robinhood-cli build && pnpm --filter @zaydiscold/robinhood-cli-mcp build
+
+
+> @zaydiscold/robinhood-cli@0.1.0 build /Users/zaydk/Desktop/robinhood-cli/cli
+> tsc -p tsconfig.json && node scripts/copy-api-map.mjs
+
+
+> @zaydiscold/robinhood-cli-mcp@0.1.0 build /Users/zaydk/Desktop/robinhood-cli/mcp
+> tsc -p tsconfig.json
+

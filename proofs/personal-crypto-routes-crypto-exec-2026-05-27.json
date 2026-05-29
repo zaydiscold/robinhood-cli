@@ -1,0 +1,149 @@
+{
+  "count": 14,
+  "routes": [
+    {
+      "path": "/api/v1/crypto/trading/accounts/",
+      "methods": [
+        "get"
+      ],
+      "summary": "Get Crypto Trading Account Details",
+      "operationIds": [
+        "api_v1_crypto_trading_account_Details"
+      ]
+    },
+    {
+      "path": "/api/v1/crypto/trading/trading_pairs/",
+      "methods": [
+        "get"
+      ],
+      "summary": "Get Crypto Trading Pairs",
+      "operationIds": [
+        "api_v1_crypto_trading_trading_pairs"
+      ]
+    },
+    {
+      "path": "/api/v1/crypto/trading/holdings/",
+      "methods": [
+        "get"
+      ],
+      "summary": "Get Crypto Holdings",
+      "operationIds": [
+        "api_v1_crypto_trading_holdings"
+      ]
+    },
+    {
+      "path": "/api/v1/crypto/trading/orders/",
+      "methods": [
+        "get",
+        "post"
+      ],
+      "summary": "Get Crypto Orders",
+      "operationIds": [
+        "api_v1_crypto_trading_orders",
+        "api_v1_post_crypto_trading_order"
+      ]
+    },
+    {
+      "path": "/api/v1/crypto/trading/orders/{id}/cancel/",
+      "methods": [
+        "post"
+      ],
+      "summary": "Cancel Open Crypto Order",
+      "operationIds": [
+        "api_v1_post_crypto_trading_cancel_order"
+      ]
+    },
+    {
+      "path": "/api/v1/crypto/marketdata/best_bid_ask/",
+      "methods": [
+        "get"
+      ],
+      "summary": "Get Best Price",
+      "operationIds": [
+        "api_v1_crypto_marketdata_best_bid_ask"
+      ]
+    },
+    {
+      "path": "/api/v1/crypto/marketdata/estimated_price/",
+      "methods": [
+        "get"
+      ],
+      "summary": "Get Estimated Price",
+      "operationIds": [
+        "api_v1_crypto_marketdata_estimated_price"
+      ]
+    },
+    {
+      "path": "/api/v2/crypto/trading/accounts/",
+      "methods": [
+        "get"
+      ],
+      "summary": "Get Accounts",
+      "operationIds": [
+        "api_v2_crypto_trading_accounts"
+      ]
+    },
+    {
+      "path": "/api/v2/crypto/trading/trading_pairs/",
+      "methods": [
+        "get"
+      ],
+      "summary": "Get Trading Pairs",
+      "operationIds": [
+        "api_v2_crypto_trading_trading_pairs"
+      ]
+    },
+    {
+      "path": "/api/v2/crypto/trading/holdings/",
+      "methods": [
+        "get"
+      ],
+      "summary": "Get Holdings",
+      "operationIds": [
+        "api_v2_crypto_trading_holdings"
+      ]
+    },
+    {
+      "path": "/api/v2/crypto/marketdata/best_bid_ask/",
+      "methods": [
+        "get"
+      ],
+      "summary": "Get Best Price",
+      "operationIds": [
+        "api_v2_crypto_marketdata_best_bid_ask"
+      ]
+    },
+    {
+      "path": "/api/v2/crypto/trading/estimated_price/",
+      "methods": [
+        "get"
+      ],
+      "summary": "Get Estimated Price",
+      "operationIds": [
+        "api_v2_crypto_marketdata_estimated_price"
+      ]
+    },
+    {
+      "path": "/api/v2/crypto/trading/orders/",
+      "methods": [
+        "get",
+        "post"
+      ],
+      "summary": "Get Orders",
+      "operationIds": [
+        "api_v2_crypto_trading_orders_get",
+        "api_v2_crypto_trading_orders_post"
+      ]
+    },
+    {
+      "path": "/api/v2/crypto/trading/orders/{id}/cancel/",
+      "methods": [
+        "post"
+      ],
+      "summary": "Cancel Open Crypto Order",
+      "operationIds": [
+        "api_v2_crypto_trading_cancel_order"
+      ]
+    }
+  ]
+}

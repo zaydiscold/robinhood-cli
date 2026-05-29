@@ -1,0 +1,10 @@
+📦  @zaydiscold/robinhood-cli-mcp@0.1.0
+Tarball Contents
+dist/server.d.ts
+dist/server.js
+package.json
+README.md
+src/server.ts
+tsconfig.json
+Tarball Details
+/Users/zaydk/Desktop/robinhood-cli/proofs/zaydiscold-robinhood-cli-mcp-0.1.0.tgz

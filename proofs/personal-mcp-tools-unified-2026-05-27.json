@@ -1,0 +1,66 @@
+{
+  "toolNames": [
+    "robinhood_api_map_summary",
+    "robinhood_brokerage_routes",
+    "robinhood_routes",
+    "robinhood_browser_routes",
+    "robinhood_brokerage_plan",
+    "robinhood_brokerage_execute",
+    "robinhood_crypto_routes",
+    "robinhood_crypto_sign"
+  ],
+  "routeTool": {
+    "name": "robinhood_routes",
+    "title": "Robinhood Unified Routes",
+    "description": "List the unified Robinhood route map: official Crypto OpenAPI plus brokerage/account browser-backed routes. This does not make live calls.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "risk": {
+          "type": "string",
+          "enum": [
+            "read",
+            "sensitive-read",
+            "write-safe",
+            "write-mutate",
+            "write-or-sensitive",
+            "destructive"
+          ]
+        },
+        "category": {
+          "type": "string"
+        },
+        "host": {
+          "type": "string"
+        },
+        "query": {
+          "type": "string"
+        },
+        "limit": {
+          "default": 80,
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 300
+        }
+      },
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    },
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": true
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  "routeResult": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\n  \"count\": 16,\n  \"routes\": [\n    {\n      \"url\": \"https://trading.robinhood.com/api/v1/crypto/marketdata/best_bid_ask/\",\n      \"host\": \"trading.robinhood.com\",\n      \"categories\": [\n        \"crypto\",\n        \"official\",\n        \"marketdata\"\n      ],\n      \"risk\": \"read\",\n      \"methods\": [\n        \"GET\"\n      ],\n      \"source\": \"official-crypto-openapi\",\n      \"seenOn\": [\n        \"official-robinhood-crypto-docs\"\n      ],\n      \"queryKeys\": [\n        \"symbol\"\n      ],\n      \"operationId\": \"api_v1_crypto_marketdata_best_bid_ask\",\n      \"summary\": \"Get Best Price\"\n    },\n    {\n      \"url\": \"https://trading.robinhood.com/api/v1/crypto/marketdata/estimated_price/\",\n      \"host\": \"trading.robinhood.com\",\n      \"categories\": [\n        \"crypto\",\n        \"official\",\n        \"marketdata\"\n      ],\n      \"risk\": \"read\",\n      \"methods\": [\n        \"GET\"\n      ],\n      \"source\": \"official-crypto-openapi\",\n      \"seenOn\": [\n        \"official-robinhood-crypto-docs\"\n      ],\n      \"queryKeys\": [\n        \"quantity\",\n        \"side\",\n        \"symbol\"\n      ],\n      \"operationId\": \"api_v1_crypto_marketdata_estimated_price\",\n      \"summary\": \"Get Estimated Price\"\n    },\n    {\n      \"url\": \"https://trading.robinhood.com/api/v1/crypto/trading/accounts/\",\n      \"host\": \"trading.robinhood.com\",\n      \"categories\": [\n        \"crypto\",\n        \"official\",\n        \"trading\",\n        \"accounts\"\n      ],\n      \"risk\": \"sensitive-read\",\n      \"methods\": [\n        \"GET\"\n      ],\n      \"source\": \"official-crypto-openapi\",\n      \"seenOn\": [\n        \"official-robinhood-crypto-docs\"\n      ],\n      \"queryKeys\": [],\n      \"operationId\": \"api_v1_crypto_trading_account_Details\",\n      \"summary\": \"Get Crypto Trading Account Details\"\n    },\n    {\n      \"url\": \"https://trading.robinhood.com/api/v1/crypto/trading/holdings/\",\n      \"host\": \"trading.robinhood.com\",\n      \"categories\": [\n        \"crypto\",\n        \"official\",\n        \"trading\",\n        \"holdings\"\n      ],\n      \"risk\": \"sensitive-read\",\n      \"methods\": [\n        \"GET\"\n      ],\n      \"source\": \"official-crypto-openapi\",\n      \"seenOn\": [\n        \"official-robinhood-crypto-docs\"\n      ],\n      \"queryKeys\": [\n        \"asset_code\",\n        \"cursor\",\n        \"limit\"\n      ],\n      \"operationId\": \"api_v1_crypto_trading_holdings\",\n      \"summary\": \"Get Crypto Holdings\"\n    },\n    {\n      \"url\": \"https://trading.robinhood.com/api/v1/crypto/trading/orders/\",\n      \"host\": \"trading.robinhood.com\",\n      \"categories\": [\n        \"crypto\",\n        \"official\",\n        \"trading\",\n        \"orders\"\n      ],\n      \"risk\": \"sensitive-read\",\n      \"methods\": [\n        \"GET\"\n      ],\n      \"source\": \"official-crypto-openapi\",\n      \"seenOn\": [\n        \"official-robinhood-crypto-docs\"\n      ],\n      \"queryKeys\": [\n        \"created_at_end\",\n        \"created_at_start\",\n        \"cursor\",\n        \"id\",\n        \"limit\",\n        \"side\",\n        \"state\",\n        \"symbol\",\n        \"type\",\n        \"updated_at_end\",\n        \"updated_at_start\"\n      ],\n      \"operationId\": \"api_v1_crypto_trading_orders\",\n      \"summary\": \"Get Crypto Orders\"\n    },\n    {\n      \"url\": \"https://trading.robinhood.com/api/v1/crypto/trading/orders/\",\n      \"host\": \"trading.robinhood.com\",\n      \"categories\": [\n        \"crypto\",\n        \"official\",\n        \"trading\",\n        \"orders-write\"\n      ],\n      \"risk\": \"write-mutate\",\n      \"methods\": [\n        \"POST\"\n      ],\n      \"source\": \"official-crypto-openapi\",\n      \"seenOn\": [\n        \"official-robinhood-crypto-docs\"\n      ],\n      \"queryKeys\": [],\n      \"operationId\": \"api_v1_post_crypto_trading_order\",\n      \"summary\": \"Place New Crypto Order\"\n    },\n    {\n      \"url\": \"https://trading.robinhood.com/api/v1/crypto/trading/orders/{id}/cancel/\",\n      \"host\": \"trading.robinhood.com\",\n      \"categories\": [\n        \"crypto\",\n        \"official\",\n        \"trading\",\n        \"orders-write\"\n      ],\n      \"risk\": \"destructive\",\n      \"methods\": [\n        \"POST\"\n      ],\n      \"source\": \"official-crypto-openapi\",\n      \"seenOn\": [\n        \"official-robinhood-crypto-docs\"\n      ],\n      \"queryKeys\": [],\n      \"operationId\": \"api_v1_post_crypto_trading_cancel_order\",\n      \"summary\": \"Cancel Open Crypto Order\"\n    },\n    {\n      \"url\": \"https://trading.robinhood.com/api/v1/crypto/trading/trading_pairs/\",\n      \"host\": \"trading.robinhood.com\",\n      \"categories\": [\n        \"crypto\",\n        \"official\",\n        \"trading\",\n        \"trading-pairs\"\n      ],\n      \"risk\": \"read\",\n      \"methods\": [\n        \"GET\"\n      ],\n      \"source\": \"official-crypto-openapi\",\n      \"seenOn\": [\n        \"official-robinhood-crypto-docs\"\n      ],\n      \"queryKeys\": [\n        \"cursor\",\n        \"limit\",\n        \"symbol\"\n      ],\n      \"operationId\": \"api_v1_crypto_trading_trading_pairs\",\n      \"summary\": \"Get Crypto Trading Pairs\"\n    },\n    {\n      \"url\": \"https://trading.robinhood.com/api/v2/crypto/marketdata/best_bid_ask/\",\n      \"host\": \"trading.robinhood.com\",\n      \"categories\": [\n        \"crypto\",\n        \"official\",\n        \"marketdata\"\n      ],\n      \"risk\": \"read\",\n      \"methods\": [\n        \"GET\"\n      ],\n      \"source\": \"official-crypto-openapi\",\n      \"seenOn\": [\n        \"official-robinhood-crypto-docs\"\n      ],\n      \"queryKeys\": [\n        \"symbol\"\n      ],\n      \"operationId\": \"api_v2_crypto_marketdata_best_bid_ask\",\n      \"summary\": \"Get Best Price\"\n    },\n    {\n      \"url\": \"https://trading.robinhood.com/api/v2/crypto/trading/accounts/\",\n      \"host\": \"trading.robinhood.com\",\n      \"categories\": [\n        \"crypto\",\n        \"official\",\n        \"trading\",\n        \"accounts\"\n      ],\n      \"risk\": \"sensitive-read\",\n      \"methods\": [\n        \"GET\"\n      ],\n      \"source\": \"official-crypto-openapi\",\n      \"seenOn\": [\n        \"official-robinhood-crypto-docs\"\n      ],\n      \"queryKeys\": [\n        \"cursor\",\n        \"limit\"\n      ],\n      \"operationId\": \"api_v2_crypto_trading_accounts\",\n      \"summary\": \"Get Accounts\"\n    },\n    {\n      \"url\": \"https://trading.robinhood.com/api/v2/crypto/trading/estimated_price/\",\n      \"host\": \"trading.robinhood.com\",\n      \"categories\": [\n        \"crypto\",\n        \"official\",\n        \"trading\"\n      ],\n      \"risk\": \"read\",\n      \"methods\": [\n        \"GET\"\n      ],\n      \"source\": \"official-crypto-openapi\",\n      \"seenOn\": [\n        \"official-robinhood-crypto-docs\"\n      ],\n      \"queryKeys\": [\n        \"quantity\",\n        \"side\",\n        \"symbol\"\n      ],\n      \"operationId\": \"api_v2_crypto_marketdata_estimated_price\",\n      \"summary\": \"Get Estimated Price\"\n    },\n    {\n      \"url\": \"https://trading.robinhood.com/api/v2/crypto/trading/holdings/\",\n      \"host\": \"trading.robinhood.com\",\n      \"categories\": [\n        \"crypto\",\n        \"official\",\n        \"trading\",\n        \"holdings\"\n      ],\n      \"risk\": \"sensitive-read\",\n      \"methods\": [\n        \"GET\"\n      ],\n      \"source\": \"official-crypto-openapi\",\n      \"seenOn\": [\n        \"official-robinhood-crypto-docs\"\n      ],\n      \"queryKeys\": [\n        \"account_number\",\n        \"asset_code\",\n        \"cursor\",\n        \"limit\"\n      ],\n      \"operationId\": \"api_v2_crypto_trading_holdings\",\n      \"summary\": \"Get Holdings\"\n    },\n    {\n      \"url\": \"https://trading.robinhood.com/api/v2/crypto/trading/orders/\",\n      \"host\": \"trading.robinhood.com\",\n      \"categories\": [\n        \"crypto\",\n        \"official\",\n        \"trading\",\n        \"orders\"\n      ],\n      \"risk\": \"sensitive-read\",\n      \"methods\": [\n        \"GET\"\n      ],\n      \"source\": \"official-crypto-openapi\",\n      \"seenOn\": [\n        \"official-robinhood-crypto-docs\"\n      ],\n      \"queryKeys\": [\n        \"account_number\",\n        \"created_at_end\",\n        \"created_at_start\",\n        \"cursor\",\n        \"side\",\n        \"state\",\n        \"symbol\",\n        \"type\",\n        \"updated_at_end\",\n        \"updated_at_start\"\n      ],\n      \"operationId\": \"api_v2_crypto_trading_orders_get\",\n      \"summary\": \"Get Orders\"\n    },\n    {\n      \"url\": \"https://trading.robinhood.com/api/v2/crypto/trading/orders/\",\n      \"host\": \"trading.robinhood.com\",\n      \"categories\": [\n        \"crypto\",\n        \"official\",\n        \"trading\",\n        \"orders-write\"\n      ],\n      \"risk\": \"write-mutate\",\n      \"methods\": [\n        \"POST\"\n      ],\n      \"source\": \"official-crypto-openapi\",\n      \"seenOn\": [\n        \"official-robinhood-crypto-docs\"\n      ],\n      \"queryKeys\": [\n        \"account_number\"\n      ],\n      \"operationId\": \"api_v2_crypto_trading_orders_post\",\n      \"summary\": \"Place New Crypto Order\"\n    },\n    {\n      \"url\": \"https://trading.robinhood.com/api/v2/crypto/trading/orders/{id}/cancel/\",\n      \"host\": \"trading.robinhood.com\",\n      \"categories\": [\n        \"crypto\",\n        \"official\",\n        \"trading\",\n        \"orders-write\"\n      ],\n      \"risk\": \"destructive\",\n      \"methods\": [\n        \"POST\"\n      ],\n      \"source\": \"official-crypto-openapi\",\n      \"seenOn\": [\n        \"official-robinhood-crypto-docs\"\n      ],\n      \"queryKeys\": [],\n      \"operationId\": \"api_v2_crypto_trading_cancel_order\",\n      \"summary\": \"Cancel Open Crypto Order\"\n    },\n    {\n      \"url\": \"https://trading.robinhood.com/api/v2/crypto/trading/trading_pairs/\",\n      \"host\": \"trading.robinhood.com\",\n      \"categories\": [\n        \"crypto\",\n        \"official\",\n        \"trading\",\n        \"trading-pairs\"\n      ],\n      \"risk\": \"read\",\n      \"methods\": [\n        \"GET\"\n      ],\n      \"source\": \"official-crypto-openapi\",\n      \"seenOn\": [\n        \"official-robinhood-crypto-docs\"\n      ],\n      \"queryKeys\": [\n        \"cursor\",\n        \"limit\",\n        \"symbol\"\n      ],\n      \"operationId\": \"api_v2_crypto_trading_trading_pairs\",\n      \"summary\": \"Get Trading Pairs\"\n    }\n  ]\n}"
+      }
+    ]
+  }
+}

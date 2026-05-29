@@ -1,0 +1,14 @@
+{
+  "ok": true,
+  "status": 0,
+  "statusText": "DRY_RUN",
+  "method": "POST",
+  "url": "https://trading.robinhood.com/api/v2/crypto/trading/orders/",
+  "path": "/api/v2/crypto/trading/orders/",
+  "risk": "write-mutate",
+  "mutatesAccount": true,
+  "requiresAuth": true,
+  "contentType": "application/json",
+  "body": "{\n  \"url\": \"https://trading.robinhood.com/api/v2/crypto/trading/orders/\",\n  \"path\": \"/api/v2/crypto/trading/orders/\",\n  \"method\": \"POST\",\n  \"risk\": \"write-mutate\",\n  \"categories\": [\n    \"crypto\",\n    \"official\",\n    \"trading\",\n    \"orders-write\"\n  ],\n  \"missingParams\": [],\n  \"warnings\": [\n    \"Write route. Personal CLI executes live unless --dry-run is used.\"\n  ],\n  \"command\": \"curl -sS -X POST \\\"https://trading.robinhood.com/api/v2/crypto/trading/orders/\\\" -H \\\"x-api-key: $ROBINHOOD_CRYPTO_API_KEY\\\" -H \\\"x-timestamp: <unix-seconds>\\\" -H \\\"x-signature: <ed25519-signature>\\\"\",\n  \"mode\": \"dry_run\",\n  \"mutatesAccount\": true,\n  \"requiresAuth\": true,\n  \"body\": \"{\\\"client_order_id\\\":\\\"00000000-0000-4000-8000-000000000000\\\",\\\"side\\\":\\\"buy\\\",\\\"symbol\\\":\\\"BTC-USD\\\",\\\"type\\\":\\\"market\\\",\\\"market_order_config\\\":{\\\"asset_quantity\\\":\\\"0.0001\\\"}}\",\n  \"authHeaders\": [\n    \"x-api-key\",\n    \"x-timestamp\",\n    \"x-signature\"\n  ]\n}",
+  "truncated": false
+}

@@ -1,0 +1,90 @@
+{
+  "generatedAt": "2026-05-27T19:07:25.173Z",
+  "unified": {
+    "routes": 275,
+    "openapiPaths": 263,
+    "openapiOperations": 266,
+    "byRisk": {
+      "sensitive-read": 182,
+      "read": 72,
+      "write-or-sensitive": 8,
+      "destructive": 6,
+      "write-safe": 4,
+      "write-mutate": 3
+    },
+    "byCategory": {
+      "money-movement": 17,
+      "account": 69,
+      "unknown": 70,
+      "history-documents": 16,
+      "orders": 16,
+      "auth": 2,
+      "watchlists": 6,
+      "marketdata": 57,
+      "telemetry-config": 8,
+      "options": 21,
+      "notifications": 2,
+      "crypto": 16,
+      "official": 16,
+      "trading": 13,
+      "accounts": 2,
+      "holdings": 2,
+      "orders-write": 4,
+      "trading-pairs": 2
+    },
+    "hosts": {
+      "api.robinhood.com": 150,
+      "bonfire.robinhood.com": 84,
+      "cashier.robinhood.com": 2,
+      "dora.robinhood.com": 3,
+      "identi.robinhood.com": 8,
+      "minerva.robinhood.com": 3,
+      "nummus.robinhood.com": 8,
+      "phoenix.robinhood.com": 1,
+      "trading.robinhood.com": 16
+    }
+  },
+  "crypto": {
+    "title": "Robinhood Crypto Trading API",
+    "server": "https://trading.robinhood.com/",
+    "paths": 14,
+    "operations": 16
+  },
+  "brokerage": {
+    "routes": 259,
+    "browserRoutes": 217,
+    "openapiPaths": 249,
+    "openapiOperations": 250,
+    "byRisk": {
+      "sensitive-read": 176,
+      "read": 66,
+      "write-or-sensitive": 8,
+      "destructive": 4,
+      "write-safe": 4,
+      "write-mutate": 1
+    },
+    "byCategory": {
+      "money-movement": 17,
+      "account": 69,
+      "unknown": 70,
+      "history-documents": 16,
+      "orders": 14,
+      "auth": 2,
+      "watchlists": 6,
+      "marketdata": 54,
+      "telemetry-config": 8,
+      "options": 21,
+      "notifications": 2
+    },
+    "hosts": {
+      "api.robinhood.com": 150,
+      "bonfire.robinhood.com": 84,
+      "cashier.robinhood.com": 2,
+      "dora.robinhood.com": 3,
+      "identi.robinhood.com": 8,
+      "minerva.robinhood.com": 3,
+      "nummus.robinhood.com": 8,
+      "phoenix.robinhood.com": 1
+    }
+  }
+}

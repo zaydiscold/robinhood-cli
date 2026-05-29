@@ -1,0 +1,17 @@
+
+> robinhood-cli-workspace@ test /Users/zaydk/Desktop/robinhood-cli
+> pnpm --filter @zaydiscold/robinhood-cli test
+
+
+> @zaydiscold/robinhood-cli@0.1.0 test /Users/zaydk/Desktop/robinhood-cli/cli
+> vitest run
+
+
+ RUN  v4.1.7 /Users/zaydk/Desktop/robinhood-cli/cli
+
+
+ Test Files  1 passed (1)
+      Tests  10 passed (10)
+   Start at  20:42:19
+   Duration  233ms (transform 38ms, setup 0ms, import 55ms, tests 42ms, environment 0ms)
+

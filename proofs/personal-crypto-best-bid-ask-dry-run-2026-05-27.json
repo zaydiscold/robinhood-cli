@@ -1,0 +1,14 @@
+{
+  "ok": true,
+  "status": 0,
+  "statusText": "DRY_RUN",
+  "method": "GET",
+  "url": "https://trading.robinhood.com/api/v2/crypto/marketdata/best_bid_ask/?symbol=BTC-USD",
+  "path": "/api/v2/crypto/marketdata/best_bid_ask/?symbol=BTC-USD",
+  "risk": "read",
+  "mutatesAccount": false,
+  "requiresAuth": true,
+  "contentType": "application/json",
+  "body": "{\n  \"url\": \"https://trading.robinhood.com/api/v2/crypto/marketdata/best_bid_ask/?symbol=BTC-USD\",\n  \"path\": \"/api/v2/crypto/marketdata/best_bid_ask/?symbol=BTC-USD\",\n  \"method\": \"GET\",\n  \"risk\": \"read\",\n  \"categories\": [\n    \"crypto\",\n    \"official\",\n    \"marketdata\"\n  ],\n  \"missingParams\": [],\n  \"warnings\": [],\n  \"command\": \"curl -sS -X GET \\\"https://trading.robinhood.com/api/v2/crypto/marketdata/best_bid_ask/?symbol=BTC-USD\\\" -H \\\"x-api-key: $ROBINHOOD_CRYPTO_API_KEY\\\" -H \\\"x-timestamp: <unix-seconds>\\\" -H \\\"x-signature: <ed25519-signature>\\\"\",\n  \"mode\": \"dry_run\",\n  \"mutatesAccount\": false,\n  \"requiresAuth\": true,\n  \"body\": \"\",\n  \"authHeaders\": [\n    \"x-api-key\",\n    \"x-timestamp\",\n    \"x-signature\"\n  ]\n}",
+  "truncated": false
+}

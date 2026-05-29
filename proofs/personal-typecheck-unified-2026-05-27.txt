@@ -1,0 +1,16 @@
+
+> robinhood-cli-workspace@ typecheck /Users/zaydk/Desktop/robinhood-cli
+> pnpm --filter @zaydiscold/robinhood-cli typecheck && pnpm --filter @zaydiscold/robinhood-cli build && pnpm --filter @zaydiscold/robinhood-cli-mcp typecheck
+
+
+> @zaydiscold/robinhood-cli@0.1.0 typecheck /Users/zaydk/Desktop/robinhood-cli/cli
+> tsc -p tsconfig.json --noEmit
+
+
+> @zaydiscold/robinhood-cli@0.1.0 build /Users/zaydk/Desktop/robinhood-cli/cli
+> tsc -p tsconfig.json && node scripts/copy-api-map.mjs
+
+
+> @zaydiscold/robinhood-cli-mcp@0.1.0 typecheck /Users/zaydk/Desktop/robinhood-cli/mcp
+> tsc -p tsconfig.json --noEmit
+

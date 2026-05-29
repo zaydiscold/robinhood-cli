@@ -1,0 +1,13 @@
+{
+  "ok": true,
+  "status": 0,
+  "statusText": "DRY_RUN",
+  "method": "GET",
+  "url": "https://api.robinhood.com/accounts/",
+  "risk": "sensitive-read",
+  "mutatesAccount": false,
+  "requiresAuth": true,
+  "contentType": "application/json",
+  "body": "{\n  \"url\": \"https://api.robinhood.com/accounts/\",\n  \"method\": \"GET\",\n  \"risk\": \"sensitive-read\",\n  \"host\": \"api.robinhood.com\",\n  \"categories\": [\n    \"account\"\n  ],\n  \"missingParams\": [],\n  \"warnings\": [\n    \"Sensitive read route. Redact account identifiers, positions, documents, and tax data in shared artifacts.\"\n  ],\n  \"command\": \"curl -sS -X GET \\\"https://api.robinhood.com/accounts/\\\" -H \\\"Authorization: Bearer $ROBINHOOD_BROKERAGE_TOKEN\\\"\",\n  \"mode\": \"dry_run\",\n  \"mutatesAccount\": false,\n  \"requiresAuth\": true\n}",
+  "truncated": false
+}

@@ -1,0 +1,20 @@
+npm notice
+npm notice 📦  @zaydiscold/robinhood-cli-mcp@0.1.0
+npm notice Tarball Contents
+npm notice 605B README.md
+npm notice 31B dist/server.d.ts
+npm notice 6.9kB dist/server.js
+npm notice 581B package.json
+npm notice 7.1kB src/server.ts
+npm notice 167B tsconfig.json
+npm notice Tarball Details
+npm notice name: @zaydiscold/robinhood-cli-mcp
+npm notice version: 0.1.0
+npm notice filename: zaydiscold-robinhood-cli-mcp-0.1.0.tgz
+npm notice package size: 2.9 kB
+npm notice unpacked size: 15.4 kB
+npm notice shasum: 577376c9abc8f4ea2d613cedae2c7190f2712afb
+npm notice integrity: sha512-6ymtr8jvCuQwA[...]mv5tCNNRoX8ug==
+npm notice total files: 6
+npm notice
+zaydiscold-robinhood-cli-mcp-0.1.0.tgz

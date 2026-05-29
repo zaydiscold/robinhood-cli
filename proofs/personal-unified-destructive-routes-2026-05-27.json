@@ -1,0 +1,80 @@
+{
+  "count": 6,
+  "routes": [
+    {
+      "url": "https://api.robinhood.com/ach/relationships/{0}/unlink/",
+      "host": "api.robinhood.com",
+      "categories": [
+        "money-movement"
+      ],
+      "risk": "destructive"
+    },
+    {
+      "url": "https://api.robinhood.com/options/orders/{0}/cancel/",
+      "host": "api.robinhood.com",
+      "categories": [
+        "options",
+        "orders"
+      ],
+      "risk": "destructive"
+    },
+    {
+      "url": "https://api.robinhood.com/orders/{0}/cancel/",
+      "host": "api.robinhood.com",
+      "categories": [
+        "orders"
+      ],
+      "risk": "destructive"
+    },
+    {
+      "url": "https://nummus.robinhood.com/orders/{0}/cancel/",
+      "host": "nummus.robinhood.com",
+      "categories": [
+        "orders"
+      ],
+      "risk": "destructive"
+    },
+    {
+      "url": "https://trading.robinhood.com/api/v1/crypto/trading/orders/{id}/cancel/",
+      "host": "trading.robinhood.com",
+      "categories": [
+        "crypto",
+        "official",
+        "trading",
+        "orders-write"
+      ],
+      "risk": "destructive",
+      "methods": [
+        "POST"
+      ],
+      "source": "official-crypto-openapi",
+      "seenOn": [
+        "official-robinhood-crypto-docs"
+      ],
+      "queryKeys": [],
+      "operationId": "api_v1_post_crypto_trading_cancel_order",
+      "summary": "Cancel Open Crypto Order"
+    },
+    {
+      "url": "https://trading.robinhood.com/api/v2/crypto/trading/orders/{id}/cancel/",
+      "host": "trading.robinhood.com",
+      "categories": [
+        "crypto",
+        "official",
+        "trading",
+        "orders-write"
+      ],
+      "risk": "destructive",
+      "methods": [
+        "POST"
+      ],
+      "source": "official-crypto-openapi",
+      "seenOn": [
+        "official-robinhood-crypto-docs"
+      ],
+      "queryKeys": [],
+      "operationId": "api_v2_crypto_trading_cancel_order",
+      "summary": "Cancel Open Crypto Order"
+    }
+  ]
+}
