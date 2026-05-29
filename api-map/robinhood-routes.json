@@ -2014,6 +2014,16 @@
     ]
   },
   {
+    "url": "https://api.robinhood.com/discovery/lists/{id}/",
+    "host": "api.robinhood.com",
+    "categories": [
+      "watchlists"
+    ],
+    "risk": "destructive",
+    "method": "DELETE",
+    "category": "watchlists"
+  },
+  {
     "url": "https://api.robinhood.com/midlands/lists/default/",
     "host": "api.robinhood.com",
     "categories": [

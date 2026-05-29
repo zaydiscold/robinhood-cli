@@ -2033,6 +2033,19 @@
     ]
   },
   {
+    "url": "https://api.robinhood.com/discovery/lists/{id}/",
+    "host": "api.robinhood.com",
+    "categories": [
+      "watchlists"
+    ],
+    "risk": "destructive",
+    "methods": [
+      "DELETE"
+    ],
+    "summary": "Delete a watchlist",
+    "source": "schema-fix 2026-05-28: normalized url_template/method/category -> url/methods/categories"
+  },
+  {
     "url": "https://api.robinhood.com/midlands/lists/default/",
     "host": "api.robinhood.com",
     "categories": [
@@ -5859,5 +5872,58 @@
       "expiration_dates",
       "type"
     ]
+  },
+  {
+    "url": "https://api.robinhood.com/discovery/lists/",
+    "host": "api.robinhood.com",
+    "categories": [
+      "watchlists"
+    ],
+    "risk": "write-mutate",
+    "methods": [
+      "POST"
+    ],
+    "summary": "Create a watchlist",
+    "bodyKeys": [
+      "display_name",
+      "icon_emoji",
+      "object_type"
+    ],
+    "source": "self-extension 2026-05-28: watchlist edit/rearrange surface"
+  },
+  {
+    "url": "https://api.robinhood.com/discovery/lists/{id}/",
+    "host": "api.robinhood.com",
+    "categories": [
+      "watchlists"
+    ],
+    "risk": "write-mutate",
+    "methods": [
+      "PATCH"
+    ],
+    "summary": "Rename/edit a watchlist (name, icon_emoji)",
+    "bodyKeys": [
+      "display_name",
+      "icon_emoji"
+    ],
+    "source": "self-extension 2026-05-28: watchlist edit/rearrange surface"
+  },
+  {
+    "url": "https://api.robinhood.com/discovery/lists/items/",
+    "host": "api.robinhood.com",
+    "categories": [
+      "watchlists"
+    ],
+    "risk": "write-mutate",
+    "methods": [
+      "POST"
+    ],
+    "summary": "Add/remove/reorder watchlist items (operations on object_id/object_type)",
+    "bodyKeys": [
+      "list_id",
+      "updates",
+      "operations"
+    ],
+    "source": "self-extension 2026-05-28: watchlist edit/rearrange surface"
   }
 ]

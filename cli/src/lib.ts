@@ -250,8 +250,9 @@ export function filterBrokerageRoutes(
 ): BrokerageRoute[] {
   const query = filters.query?.toLowerCase();
   return routes.filter((route) => {
+    if (!route?.url) return false;
     if (filters.risk && route.risk !== filters.risk) return false;
-    if (filters.category && !route.categories.includes(filters.category)) return false;
+    if (filters.category && !route.categories?.includes(filters.category)) return false;
     if (filters.host && route.host !== filters.host) return false;
     if (query && !route.url.toLowerCase().includes(query)) return false;
     return true;
