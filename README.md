@@ -23,6 +23,20 @@ This talks to my real, existing Robinhood account. Read and write:
 
 The differentiator: **this manages the account I already have.** Robinhood's own official agent access ("agentic") is **equity-only** and makes you stand up a separate, isolated portfolio — this drives your *real* one, across **every account**, with the full surface: options, recurring investments, transfers/deposits/withdrawals, dividends, watchlists, and margin. Account management that's a pain through their UI becomes one command here. Full coverage: identify, navigate, and modify across every account; a safe read-only default with a dry-run test mode on every write.
 
+## In plain English (new here?)
+
+Not a developer? Here's the gist:
+
+- **Robinhood** is the investing app. Normally you tap through its phone/web interface to check balances or place trades.
+- A **CLI** (command-line tool) lets you do the same things by *typing commands* in a terminal — faster, scriptable, and you can automate it.
+- An **MCP server** is a standard way to hand those abilities to an **AI assistant** (like Claude). With it, you can literally ask your AI to "show me my Roth positions" or "pause my recurring buys" and it uses this tool to do it.
+
+**Why it's useful:** some things are tedious or near-impossible in Robinhood's app — seeing *all* your accounts at once, bulk-managing dozens of recurring investments, pulling clean data for a spreadsheet. This turns those into one line.
+
+**Is it safe?** It uses *your own* login (nothing is sent to anyone else, no passwords are stored), and it's built **read-only by default**. Looking at data is free and instant. Anything that *changes* your account — placing a trade, moving money — is blocked unless you flip **two** separate safety switches on purpose. So an AI agent can browse freely but cannot spend a cent or place a trade without your explicit go-ahead. (Details in [Reads vs. writes](#4-reads-vs-writes--the-safety-model).)
+
+**Note:** this is an independent, unofficial project — not affiliated with or endorsed by Robinhood. Use your own account, at your own risk.
+
 It does both **reads and writes**, including **buy/sell for equities and options**. But it will never place a real trade on its own. Every write defaults to a dry-run and only goes live when you pass an explicit `--live-write` flag *and* set the `ROBINHOOD_ALLOW_LIVE_WRITE=1` environment gate. Two deliberate opt-ins, or nothing leaves the machine.
 
 ## The map is the point
