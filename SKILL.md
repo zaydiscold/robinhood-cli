@@ -13,7 +13,7 @@ metadata:
 
 # Robinhood CLI + MCP
 
-Operate real Robinhood brokerage accounts from the terminal or via MCP tools. The CLI and MCP share one engine (`cli/src/lib.ts`) — same auth, same route map (~277 reverse-engineered endpoints), same double-gate write safety.
+Operate real Robinhood brokerage accounts from the terminal or via MCP tools. The CLI and MCP share one engine (`cli/src/lib.ts`) — same auth, same route map (279 brokerage/account routes as of the latest local check), same double-gate write safety.
 
 **Repo:** `github.com/zaydiscold/robinhood-cli`
 **Deep reference:** `AGENTS.md` in repo root — the complete API surface, worked examples, and every command. Hand that file to any agent and it's self-contained. This SKILL.md is the Hermes trigger + boot doc: quick-start, the 80/20 commands, and all the operational pitfalls learned across sessions.
@@ -46,7 +46,7 @@ pnpm --filter @zaydiscold/robinhood-cli build
 pnpm --filter @zaydiscold/robinhood-cli-mcp build
 ```
 
-Requires: **Node >=20**, **pnpm**.
+Requires: **Node >=20**, **pnpm**. If the package bin is not linked in the local workspace, use `node cli/dist/index.js ...`; the built entrypoint is the verification source.
 
 ---
 
@@ -72,6 +72,9 @@ All commands run from repo root. Reads run live and free. Writes are double-gate
 
 ```bash
 robinhood-cli api-map summary --json
+robinhood-cli api-map account-context --json
+robinhood-cli api-map options-strategies --json
+robinhood-cli api-map options-strategy-plan iron-condor --json
 robinhood-cli api-map routes --host trading.robinhood.com --json
 robinhood-cli brokerage routes --risk read --json
 robinhood-cli brokerage route "https://api.robinhood.com/accounts/" --json
@@ -86,6 +89,23 @@ robinhood-cli crypto routes --json
 robinhood-cli crypto sign --api-key "$ROBINHOOD_API_KEY" --private-key-b64 "$ROBINHOOD_PRIVATE_KEY_B64" --path /api/v1/crypto/trading/accounts/ --method GET
 robinhood-cli crypto execute "https://trading.robinhood.com/api/v2/crypto/marketdata/best_bid_ask/" --query-param symbol=BTC-USD --dry-run --json
 ```
+
+### Current Read/Write Surface
+
+Keep this split current when editing the skill:
+
+| Surface | Current state | Agent rule |
+|---------|---------------|------------|
+| API map | 279 brokerage/account routes plus official Crypto API routes | Rebuild after edits; runtime reads `cli/dist/api-map/` |
+| Read commands | `quote`, `positions`, `options positions`, `options expirations`, `options chain`, `watchlist list`, `recurring list`, route-map reads, crypto read plans | Live reads are allowed with caller-owned auth, but redact balances/tokens in shareable output |
+| Options research/planning | 18 strategy workflows; `options-strategy-plan` emits `reviewContract` | Planning only until exact user approval and write gates |
+| Equity/options order writes | Route-map executor against `orders/`, `options/orders/`, and cancel routes | Must use `--method`, exact body, `--live-write`, and `ROBINHOOD_ALLOW_LIVE_WRITE=1`; dry-run first |
+| Recurring investments | First-class `recurring list`, `recurring resume`, `recurring pause`; route map also has GET one schedule and POST create | Resume/pause are the verified first-class writes. Create/edit amount/funding-source are route-map research unless a fresh capture verifies body shape |
+| Money movement / funding | ACH relationships/transfers and cashier/deposit-schedule routes are mapped mostly as read or `write-or-sensitive` | Never mutate funding, ACH links, deposits, withdrawals, or transfers without a fresh route/body capture and explicit approval |
+| DRIP/options/account settings | DRIP PATCH and account-setting routes are mapped or browser-observed | Treat as account-setting writes; plan and verify reload state before any live action |
+| Crypto | Official Crypto API signing/planning/execution commands | Different auth from brokerage; crypto writes/cancels use the same double gate |
+
+Do not overclaim first-class support. If a capability is route-map-only, say so and build a dry-run body from the current route map before considering implementation.
 
 ### Critical Query Patterns
 
@@ -104,7 +124,262 @@ robinhood-cli crypto execute "https://trading.robinhood.com/api/v2/crypto/market
 | Options instruments | `options/instruments/?chain_id={id}&expiration_dates={date}&state=active&type=call` | Find specific strikes |
 | Options orders | `options/orders/` | POST, same double-gate |
 | Recurring buys | `recurring` subcommand | `robinhood-cli recurring list` — dedicated command |
+| Recurring pause/resume | `recurring pause|resume` | Verified first-class writes; double-gated |
+| Recurring create/edit/funding source | `bonfire.robinhood.com/recurring_schedules/` | Route-map research only until fresh body capture verifies amount/source fields |
+| Funding sources | `cashier.robinhood.com/ach/relationships/`, `payment_instruments/v2/` | Read first; writes are high-risk and not first-class |
 | Crypto market data | `crypto execute "marketdata/best_bid_ask/" --query-param symbol=BTC-USD` | Official Crypto API |
+
+### Account Context and Strategy Maps
+
+| Task | Command | Notes |
+|------|---------|-------|
+| Browser account routing | `robinhood-cli api-map account-context` | Shows whether `?account_number=` propagates, is mixed, or is ignored on each web surface |
+| Build web workflow URL | `robinhood-cli api-map account-url <id> --account <n> ...` | Navigation/research only; prefer direct API routes for automation |
+| Options strategy catalog | `robinhood-cli api-map options-strategies` | Lists single legs, covered calls, cash-secured/naked puts, naked calls, debit/credit spreads, straddles, strangles, butterflies, iron condors |
+| Strategy dry-run body | `robinhood-cli api-map options-strategy-plan <id> --param key=value` | Emits lookup steps + `options/orders/` body template; never sends |
+
+Primary options references:
+
+- `docs/options-greeks-strategy-research-2026-06-02.md`
+- `docs/options-quantitative-playbook-2026-06-03.md`
+- `api-map/options-strategy-workflows-2026-06-02.json`
+
+### Options Greeks and Strategy Math
+
+Use this section when the user asks for options trading, options strategies, or
+Greek exposure. It is research/planning guidance, not investment advice and not
+permission to send a live order.
+
+When viewing an options chain, do not stop at reporting strikes. Translate the
+screen into a tradeable research object:
+
+1. Resolve symbol -> instrument -> chain id -> expiration -> option instrument ids.
+2. Quote individual legs with `marketdata/options/`; quote multi-leg packages
+   with `marketdata/options/strategy/quotes/` when available.
+3. Classify the strategy from the 18-workflow catalog before building an order.
+4. Compute payoff math separately from Greek sensitivity math.
+5. Emit missing fields and blockers before any dry-run body.
+
+For every options read or plan, include:
+
+```text
+spot, expiration, dte, strike(s), call/put, bid/ask/mark, IV if available,
+delta/gamma/theta/vega/rho with units, open/close effect, quantity,
+natural/mid/limit price, max profit/loss, breakevens, assignment/expiration flags
+```
+
+Treat every multi-leg trade as a portfolio of signed legs. Long legs add Greek
+exposure; short legs subtract it. Multiply by `ratio_quantity`, contract count,
+and the 100-share multiplier:
+
+```
+net_delta = sum(leg_side * leg_delta * ratio_quantity * contracts * 100)
+net_gamma = sum(leg_side * leg_gamma * ratio_quantity * contracts * 100)
+net_theta = sum(leg_side * leg_theta * ratio_quantity * contracts * 100)
+net_vega  = sum(leg_side * leg_vega  * ratio_quantity * contracts * 100)
+net_rho   = sum(leg_side * leg_rho   * ratio_quantity * contracts * 100)
+```
+
+Where `leg_side` is `+1` for buy/long legs and `-1` for sell/short legs. Use
+this as a live sensitivity snapshot, not a prediction: delta/gamma move with the
+underlying, theta changes as expiration approaches, and vega changes with implied
+volatility.
+
+For quick scenarios:
+
+```text
+approx_pnl = net_delta*dS + 0.5*net_gamma*dS^2 + net_vega*dIV + net_theta*days
+```
+
+Label units. Broker Greeks may already be per day or per volatility point;
+Black-Scholes outputs are often per year and per 1.00 volatility unit.
+
+Black-Scholes baseline for sanity checks:
+
+```text
+d1 = (ln(S / K) + (r - q + sigma^2 / 2) * T) / (sigma * sqrt(T))
+d2 = d1 - sigma * sqrt(T)
+call_delta = exp(-qT) * N(d1)
+put_delta  = exp(-qT) * (N(d1) - 1)
+gamma      = exp(-qT) * phi(d1) / (S * sigma * sqrt(T))
+vega       = S * exp(-qT) * phi(d1) * sqrt(T)
+```
+
+Operational scaling: divide vega by 100 for one volatility point, theta by 365
+for a rough per-day value, and rho by 100 for one rate point. Prefer Robinhood's
+live `marketdata/options/` Greeks when present, then use formulas only to check
+sign and magnitude.
+
+Core interpretations:
+
+| Greek | Meaning for an agent |
+|-------|----------------------|
+| Delta | Directional exposure. Positive benefits from up moves; negative benefits from down moves. |
+| Gamma | How fast delta changes. Long gamma likes movement; short gamma can lose faster as price moves against it. |
+| Theta | Time decay. Positive theta collects decay; negative theta pays decay. |
+| Vega | Implied-volatility exposure. Long vega benefits from IV expansion; short vega benefits from IV crush. |
+| Rho | Interest-rate exposure. Usually less important intraday but include it in summaries. |
+
+### Options Strategy Classification
+
+First classify the requested trade. Never infer naked exposure from loose
+language. If the user says "sell a call", distinguish sell-to-close, covered
+call, call credit spread, and naked short call before planning an order.
+
+| Strategy family | Typical posture | Aggression |
+|-----------------|-----------------|------------|
+| Long call / put | Defined-risk directional debit; long gamma, long vega, negative theta | Moderate |
+| Sell-to-close | Reduces an existing long option; should use `position_effect=close` | Conservative |
+| Covered call | Short call against 100 owned shares; income but caps upside and can assign shares | Conservative |
+| Cash-secured put | Short put backed by cash for 100 shares; bullish income with assignment risk | Moderate |
+| Covered put | Short stock plus short put; not the same as cash-secured, keeps short-stock upside risk | Aggressive |
+| Naked short call / short straddle | Undefined-risk short-volatility exposure | Aggressive |
+| Naked/margin short put | Short put without verified full cash collateral | Aggressive |
+| Vertical credit spread | Defined-risk premium selling; short gamma/vega with long wing protection | Moderate |
+| Vertical debit spread | Defined-risk directional debit; capped gain and capped loss | Moderate |
+| Long straddle | Defined-risk long-volatility trade; long gamma/vega, heavy negative theta | Moderate |
+| Short straddle / short strangle | Short-volatility income with undefined risk | Aggressive |
+| Long strangle | Defined-risk long-volatility trade with OTM call and OTM put | Moderate |
+| Butterfly / iron condor | Defined-risk range/pin or short-volatility structures | Moderate |
+
+Payoff checks:
+
+| Strategy | Quant check |
+|----------|-------------|
+| Long call | Max loss = debit * 100; breakeven = strike + debit |
+| Long put | Max loss = debit * 100; breakeven = strike - debit |
+| Covered call | Verify 100 shares per short call in same account; upside capped above strike |
+| Cash-secured put | Verify cash collateral; max loss = (strike - credit) * 100 |
+| Naked short call | Max profit = credit * 100; max loss theoretically unlimited |
+| Credit spread | Max profit = credit * 100; max loss = (width - credit) * 100 |
+| Debit spread | Max loss = debit * 100; max profit = (width - debit) * 100 |
+| Long straddle | Max loss = debit * 100; breakevens = strike +/- debit |
+| Long strangle | Max loss = debit * 100; breakevens = call strike + debit and put strike - debit |
+| Short strangle | Max profit = credit * 100; undefined call-side risk and large put-side downside |
+| Iron condor | Max profit = credit * 100; max loss = widest wing - credit, scaled by 100 |
+
+Ambiguous wording:
+
+| User says | Clarify before planning |
+|-----------|-------------------------|
+| Sell a call | Sell-to-close, covered call, call credit spread, or naked short call |
+| Sell a put | Cash-secured put, put credit spread, or margin/naked short put |
+| Covered short put | Cash-secured put or covered put; these are not the same |
+| Straddle | Long debit straddle or short undefined-risk straddle |
+| Roll | Which legs close, which legs open, and whether net risk increases |
+
+Use the risk-score heuristic in
+`docs/options-greeks-strategy-research-2026-06-02.md` for aggressive vs.
+non-aggressive gating. Inputs include undefined loss, naked short calls,
+short gamma/vega, assignment sensitivity, near-expiration risk, wide spreads,
+margin use, defined-risk wings, collateral/coverage, and closing-only status.
+
+Every dry-run summary should include strategy id, conservative/moderate/aggressive
+label, max profit/loss, breakevens, collateral/coverage check, net Greeks,
+liquidity flags, expiration flags, exact order body, missing fields, and write-gate
+state.
+
+### Quant Review Heuristics
+
+Use these rules to turn "quant talk" into reliable agent behavior:
+
+- Greeks are local derivatives, not payoff guarantees. Always separate current
+  sensitivity from expiration payoff.
+- Credit received is max profit only for short premium structures; debit paid is
+  max loss only for defined-risk long premium structures.
+- Short gamma near expiration is a risk amplifier. Flag near-expiration shorts,
+  wide bid/ask spreads, stale package quotes, and 0DTE exposure.
+- A covered call is covered only if the same account has at least 100 shares per
+  short call. A cash-secured put is secured only if cash collateral is verified.
+- Naked short calls, short straddles, and short strangles are aggressive even
+  when the premium looks small because loss can expand nonlinearly.
+- For rolls, compare closed-leg Greeks/payoff to opened-leg Greeks/payoff and
+  state whether risk increased, duration changed, or undefined exposure appeared.
+
+### Options Review Contract
+
+`options-strategy-plan` emits a machine-readable `reviewContract`. Treat it as a
+hard checklist, not decoration. Before any order body can leave dry-run mode,
+an agent must satisfy or explicitly block every field:
+
+```bash
+robinhood-cli api-map options-strategy-plan covered-call \
+  --param account_number=<ACCOUNT_NUMBER> \
+  --param symbol=<SYMBOL> \
+  --param chain_id=<CHAIN_ID> \
+  --param expiration=<YYYY-MM-DD> \
+  --param short_call_option_id=<OPTION_ID> \
+  --param limit_price=<PRICE> \
+  --param quantity=1 \
+  --param time_in_force=gfd \
+  --param ref_id=<UUID> \
+  --json
+```
+
+The `reviewContract` requires:
+
+- account, symbol, chain, expiration, every option instrument id, every strike,
+  side, `position_effect`, `ratio_quantity`, quantity, limit price, time in
+  force, and `ref_id`;
+- payoff checks for max profit, max loss, and breakevens from the actual debit
+  or credit;
+- signed-leg net Greeks with unit labels;
+- scenario rows for spot +/-1%, IV +/-5 vol points, one day of theta, breakevens,
+  and max-loss boundary;
+- variant resolution for phrases like "sell a call", "sell a put", "covered
+  short put", "straddle", and "strangle";
+- hard blockers for missing instrument ids, unclear open/close effects,
+  unverified coverage/collateral, stale package quotes, and missing live-write
+  gates.
+
+When the user asks for "covered short put", first run:
+
+```bash
+robinhood-cli api-map options-strategies --query "covered short put" --json
+```
+
+Then explain the ambiguity: common retail wording often means cash-secured put,
+while a true covered put means short stock plus short put. Pick neither
+automatically.
+
+### Options CLI/API Playbook
+
+Use this exact planning sequence:
+
+1. `robinhood-cli api-map account-context --json` to understand browser account routing. Prefer explicit API `account_number` fields over URL state.
+2. `robinhood-cli options expirations <SYMBOL> --json` and `robinhood-cli options chain <SYMBOL> --expiration <DATE> --type call|put --json` to inspect available contracts.
+3. Resolve all leg instrument ids through `options/instruments/`, then quote individual legs with `marketdata/options/`.
+4. For spreads/straddles/condors, quote the package with `marketdata/options/strategy/quotes/` when available.
+5. `robinhood-cli api-map options-strategies --json` to choose the strategy id.
+6. `robinhood-cli api-map options-strategy-plan <id> --param key=value --json` to emit lookup steps and an `options/orders/` body template.
+7. Only after the dry-run body is exact should any live route be considered, and only with `--live-write` plus `ROBINHOOD_ALLOW_LIVE_WRITE=1`.
+
+Required fields before a dry-run is acceptable: account, symbol, expiration,
+every strike, every option instrument id, buy/sell side, `position_effect`,
+quantity, limit price, time in force, and ref id. For closes, verify the open
+position first and set `position_effect=close`.
+
+### Options Chain Builder State
+
+The web URL `https://robinhood.com/options/chains/<SYMBOL>` is not enough to
+rebuild a selected order. It defaults to a nearby expiration and then stores the
+selected expiration, buy/sell side, call/put side, strike, and Builder legs in
+UI/API state rather than the location bar.
+
+Map the UI to APIs like this:
+
+| UI state | API state |
+|----------|-----------|
+| Symbol page | `options/chains/?account_number=<N>&underlying_symbol=<SYMBOL>` |
+| Expiration dropdown | `options/instruments/?chain_id=<ID>&expiration_dates=<DATE>` |
+| Call/put toggle | `type=call|put` |
+| Strike rows | returned option instrument ids |
+| Right-side price | `marketdata/options/?ids=<IDS>` |
+| Spread/straddle/condor Builder | `marketdata/options/strategy/quotes/` plus multi-leg `options/orders/` body |
+
+For a spread, never trust a label alone. Reconstruct every leg from option
+instrument id, strike, expiration, side, ratio, and `position_effect`, then
+quote the package and calculate max profit/loss before emitting the dry-run.
 
 ### Route Matching Gotchas
 
@@ -116,11 +391,30 @@ robinhood-cli crypto execute "https://trading.robinhood.com/api/v2/crypto/market
 
 Full details: `AGENTS.md` §3-§5.
 
+### Skill Maintenance Rules
+
+This skill should stay concise and operational. Detailed math and source-backed
+research belong in:
+
+- `docs/options-quantitative-playbook-2026-06-03.md`
+- `docs/options-greeks-strategy-research-2026-06-02.md`
+- `api-map/options-strategy-workflows-2026-06-02.json`
+- `AGENTS.md`
+
+When updating the skill, follow progressive disclosure:
+
+- Put only the command sequence, safety gates, and decision rules in `SKILL.md`.
+- Link detailed docs instead of duplicating whole reference essays.
+- Verify live command names with `node cli/dist/index.js --help`.
+- Verify strategy count and `reviewContract` with `node cli/dist/index.js api-map options-strategies --json` and `node cli/dist/index.js api-map options-strategy-plan iron-condor --json`.
+- If a route supports both read and write methods, state the method explicitly; do not rely on URL-only matching.
+- If a body shape is inferred or unverified, label it route-map research, not supported automation.
+
 ---
 
 ## MCP Server
 
-10 tools surfaced via Hermes MCP. Same engine → same auth, gate, and method-aware routing as the CLI.
+14 tools surfaced via Hermes MCP. Same engine → same auth, gate, and method-aware routing as the CLI.
 
 ### Registration
 
@@ -144,6 +438,10 @@ claude mcp add robinhood-cli -s user -- \
 | `robinhood_brokerage_routes` | List brokerage routes with filters |
 | `robinhood_routes` | Unified route map (crypto + brokerage) |
 | `robinhood_browser_routes` | Latest CDP-captured route templates |
+| `robinhood_account_context_workflows` | Browser-observed account-number routing workflows |
+| `robinhood_account_context_url` | Build a workflow URL from safe placeholders |
+| `robinhood_options_strategy_workflows` | Strategy catalog with payoff and Greek posture |
+| `robinhood_options_strategy_plan` | Dry-run strategy lookup steps + order body template |
 | `robinhood_brokerage_plan` | Create a dry-run plan (no execution) |
 | `robinhood_brokerage_execute` | Execute a brokerage request |
 | `robinhood_crypto_routes` | List official Crypto API routes |
@@ -311,7 +609,7 @@ Full details: `AGENTS.md` §9.
 - [ ] `node cli/dist/index.js brokerage execute "bonfire.robinhood.com/transfer/accounts/" --json --full` shows all 5 accounts
 - [ ] `node cli/dist/index.js brokerage execute "portfolios/" --json --full` returns portfolio data
 - [ ] MCP server starts: `node mcp/dist/server.js` (or `hermes mcp add` registered)
-- [ ] Route map count: `node cli/dist/index.js brokerage routes --json | python3 -c "import sys,json;print(json.load(sys.stdin)['count'])"` returns ~277
+- [ ] Route map count: `node cli/dist/index.js brokerage routes --json | python3 -c "import sys,json;print(json.load(sys.stdin)['count'])"` returns 279
 - [ ] Watchlists work: `node cli/dist/index.js brokerage execute "discovery/lists/?owner_type=custom" --json` returns 200
 - [ ] Dry-run gate works: a POST without `--live-write` returns `liveWriteBlocked`
 - [ ] Live write gate works: a POST with `--live-write` but without `ROBINHOOD_ALLOW_LIVE_WRITE=1` returns `liveWriteBlocked`

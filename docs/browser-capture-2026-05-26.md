@@ -49,6 +49,23 @@ Deep proof:
 - `cdp-stock-account-deep-sanitized-2026-05-27.json` (browser capture workspace)
 - `api-map/browser-cdp-routes-2026-05-27.json`
 
+## 2026-06-02 Account Context and XBI Options Chain Pass
+
+The latest authenticated browser pass added account-context routing and options-chain workflow evidence:
+
+- `api-map/browser-cdp-routes-2026-06-02.json` - 250 latest sanitized browser route templates.
+- `api-map/account-context-browser-workflows-2026-06-02.json` - web-surface behavior for `?account_number=...`.
+- `api-map/options-strategy-workflows-2026-06-02.json` - strategy leg templates, payoff notes, Greek posture, and dry-run order body templates.
+- `docs/account-context-routing-2026-06-02.md` - detailed routing evidence and reproducibility.
+- `docs/options-greeks-strategy-research-2026-06-02.md` - options math and strategy taxonomy for agents.
+
+Key observations:
+
+- Stock detail/order-ticket and investing settings propagated the supplied account number into downstream API route families.
+- Legend and transfers did not rely on the supplied URL query in this pass; they used internal selected account or money-movement state.
+- Recurring was mixed: the hub loaded broad schedules, then row-level calls used schedule account context.
+- `https://robinhood.com/options/chains/XBI` exposed the current options-chain flow: chain lookup, expiration/type-specific instruments, option marketdata, strategy quotes, options buying power, and order-template-adjacent calls.
+
 ## Raw Evidence Policy
 
 The proof stores URL origin/path/query-key names, methods, request types, masked route labels, and risk/category annotations. It does not store cookies, auth headers, request bodies, response bodies, account balances, holdings quantities, order tickets, or storage values.

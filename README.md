@@ -1,5 +1,9 @@
 # robinhood-cli — the full Robinhood API as a CLI + MCP server
 
+> Trading at the speed of inference.
+
+> Hey, if this project saves you time and you want to support the work, you can use my Robinhood referral link: https://join.robinhood.com/zaydk5
+
 > **Unofficial Robinhood API toolkit: a typed API map, a command-line tool, and a Model Context Protocol (MCP) server — full account access, read *and* write, dry-run gated.** Stocks, options, recurring investments, transfers, dividends, watchlists, and multi-account brokerage automation for terminals and AI agents (Claude, Cursor, any MCP client).
 
 As far as I can tell, this is the **only open-source project that exposes the *entire* Robinhood brokerage surface as all three at once** — a reverse-engineered API map, a CLI, and an MCP server — driving the real account you already have, not an isolated sandbox.
@@ -47,7 +51,7 @@ The CLI is nice, but the headline artifact is [`api-map/`](./api-map/). It's the
 - **Per-endpoint Markdown** — one file per route under [`api-map/markdown/`](./api-map/markdown/), each marked `Mutation: yes/no`, including [`trading-buy-sell-write.md`](./api-map/markdown/trading-buy-sell-write.md) for buy/sell + options.
 - **curl** — copy-paste examples for every route.
 
-It covers **265+ captured endpoints (278 mapped routes)** across eight Robinhood API hosts — `api.robinhood.com`, `bonfire.robinhood.com`, `nummus.robinhood.com` (crypto), `cashier.robinhood.com` (money movement), plus `dora`, `identi`, `minerva`, and `phoenix`. Where Robinhood publishes an official spec (the Crypto Trading API), I fold that in verbatim; everything else is sanitized, browser-backed evidence — route shapes, methods, and query keys, never tokens, balances, or order tickets.
+It covers **265+ captured endpoints (279 mapped brokerage/account routes)** across eight Robinhood API hosts — `api.robinhood.com`, `bonfire.robinhood.com`, `nummus.robinhood.com` (crypto), `cashier.robinhood.com` (money movement), plus `dora`, `identi`, `minerva`, and `phoenix`. Where Robinhood publishes an official spec (the Crypto Trading API), I fold that in verbatim; everything else is sanitized, browser-backed evidence — route shapes, methods, and query keys, never tokens, balances, or order tickets.
 
 ### Design note: method-aware route resolution
 
@@ -57,7 +61,7 @@ This CLI selects routes **by URL *and* HTTP method**, so a single endpoint can c
 
 ### Requirements
 
-- **Node.js 18+** and **pnpm** (`npm i -g pnpm`).
+- **Node.js 20+** and **pnpm** (`npm i -g pnpm`).
 - A **Robinhood account** you own, logged in via the Robinhood web app in a Chromium-based browser (Chrome/Brave/Edge) on the same machine — that's where auth is read from.
 
 ### 1. Install & build
@@ -89,6 +93,10 @@ pnpm auth:refresh
 pnpm --filter @zaydiscold/robinhood-cli cli -- --help
 
 robinhood-cli api-map summary --json                 # what the map covers
+robinhood-cli api-map account-context                # browser-tested account_number routing behavior
+robinhood-cli api-map options-strategies             # options payoff/Greek strategy catalog
+robinhood-cli api-map options-strategy-plan iron-condor --json
+robinhood-cli api-map options-strategy-plan naked-short-put --json
 robinhood-cli recurring list                          # flagship: recurring buys + state
 robinhood-cli quote MRVL NVDA AAPL                    # live quotes for one+ symbols
 robinhood-cli positions                               # equity holdings ranked by return
@@ -157,6 +165,54 @@ Best performer: DRAM $50 Call 6/18 at +1334.6%.
 ```
 
 Both are pure reads (no write gate). `--json` emits structured rows for piping into a spreadsheet or an agent.
+
+### 6.1 Options strategy planners — Greeks, spreads, and dry-run bodies
+
+The strategy layer is separate from the live chain reader. It is a research/planning catalog for single legs, covered calls, cash-secured puts, naked short calls/puts, debit and credit spreads, straddles, strangles, butterflies, and iron condors. Each strategy records the leg roles, payoff bounds, rough Greek posture, Robinhood lookup steps, and an `options/orders/` body template.
+
+```bash
+# Browse the strategy catalog.
+robinhood-cli api-map options-strategies
+robinhood-cli api-map options-strategies --defined-risk
+robinhood-cli api-map options-strategies --aggressiveness aggressive --json
+robinhood-cli api-map options-strategy-plan short-strangle --json
+
+# Build a dry-run body template. This does not send an order.
+robinhood-cli api-map options-strategy-plan call-credit-spread \
+  --param account_number=<ACCOUNT_NUMBER> \
+  --param symbol=XBI \
+  --param chain_id=<CHAIN_ID> \
+  --param expiration=2026-06-26 \
+  --param short_call_option_id=<SHORT_CALL_OPTION_ID> \
+  --param long_call_option_id=<LONG_CALL_OPTION_ID> \
+  --param strategy_legs=<ENCODED_STRATEGY_LEGS> \
+  --param limit_price=4.00 \
+  --param quantity=1 \
+  --param time_in_force=gfd \
+  --param ref_id=$(python3 -c "import uuid;print(uuid.uuid4())") \
+  --json
+```
+
+Planner output is still a write-capable order body, so the live route remains blocked by the normal double gate. Treat aggressive or undefined-risk strategies as exact-approval only.
+
+The detailed math references live in [`docs/options-greeks-strategy-research-2026-06-02.md`](./docs/options-greeks-strategy-research-2026-06-02.md) and [`docs/options-quantitative-playbook-2026-06-03.md`](./docs/options-quantitative-playbook-2026-06-03.md). They cover net Greek aggregation, Black-Scholes sanity checks, payoff and breakeven formulas, aggressive-vs-non-aggressive variants, and the machine-readable `reviewContract` emitted by `options-strategy-plan`. Use them when translating loose requests like "sell a call" or "covered short put" into a precise dry-run order body.
+
+### 6.2 Browser account context — `account_number` routing
+
+The browser pass found that some Robinhood web routes propagate `?account_number=...` into API calls and some ignore it. The CLI exposes that as a separate workflow map:
+
+```bash
+robinhood-cli api-map account-context
+robinhood-cli api-map account-context --behavior propagates
+robinhood-cli api-map account-url stock-detail-order-ticket \
+  --account <ACCOUNT_NUMBER> \
+  --symbol XBI \
+  --instrument-id <INSTRUMENT_UUID>
+```
+
+Use this for navigation and endpoint discovery. For automation, prefer direct API routes with explicit account fields over trusting a web URL.
+
+Security-research details live in [`docs/security-research-account-number-context-routing-2026-06-03.md`](./docs/security-research-account-number-context-routing-2026-06-03.md). It records the account-number dropdown/routing pattern, full-scope retest matrix, and the boundary between account-context evidence and any real IDOR claim.
 
 ### 7. More read commands — quote, positions, watchlists
 

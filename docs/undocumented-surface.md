@@ -4,12 +4,12 @@ The full Robinhood route map combines Robinhood's official Crypto OpenAPI with c
 
 Official Crypto routes are first-class executable routes in the personal CLI and MCP server. Use `crypto execute` / `robinhood_crypto_execute` for `trading.robinhood.com` routes; use `brokerage execute` / `robinhood_brokerage_execute` for browser-backed brokerage/account routes.
 
-Current counts after the 2026-05-27 deep CDP merge:
+Current counts after the 2026-06-02 account-context and XBI options-chain browser pass:
 
 - 275 unified route entries.
 - 16 official Crypto route entries from Robinhood's published OpenAPI.
 - 259 brokerage/account route templates.
-- 217 latest authenticated browser route templates.
+- 250 latest authenticated browser route templates.
 - 263 normalized unified OpenAPI paths and 266 unified operations in `api-map/openapi/robinhood-unified.openapi.json`.
 - 249 normalized OpenAPI paths and 250 operations in `api-map/openapi/robinhood-brokerage.openapi.json`.
 - 72 read.
@@ -36,6 +36,18 @@ Current counts after the 2026-05-27 deep CDP merge:
 - Raw route observations: 621 route templates.
 - Actionable XHR/fetch merge: 217 latest browser routes across `api.robinhood.com`, `bonfire.robinhood.com`, `cashier.robinhood.com`, `dora.robinhood.com`, `identi.robinhood.com`, `minerva.robinhood.com`, and `nummus.robinhood.com`.
 - Per-endpoint docs: 275 files in `api-map/markdown/endpoints/`, each with a top-level `Mutation: yes|no` field.
+
+2026-06-02 account-context and XBI options-chain pass:
+
+- Evidence: `api-map/browser-cdp-routes-2026-06-02.json`.
+- Workflow map: `api-map/account-context-browser-workflows-2026-06-02.json`.
+- Options strategy map: `api-map/options-strategy-workflows-2026-06-02.json`.
+- Security note: `docs/security-research-account-number-context-routing-2026-06-03.md`.
+- Pages: stock detail/order ticket with account query, investing settings, stock lending, Legend layout, transfers, recurring, classic home, stale stock-options route, and `https://robinhood.com/options/chains/XBI`.
+- Actionable XHR/fetch merge: 250 latest browser route templates.
+- Key finding: `?account_number=` strongly propagates on stock detail/order-ticket and investing settings; is mixed on options chain, stock lending, account hub, history/documents/tax, and recurring; and is ignored by Legend and transfers in the sanitized capture.
+- Options-chain finding: `/options/chains/{symbol}` defaults to the nearest expiration in UI, while expiration/type/side are stateful UI controls backed by `options/chains`, `options/instruments`, `marketdata/options`, and strategy quote/order routes.
+- Docs: `docs/account-context-routing-2026-06-02.md` and `docs/options-greeks-strategy-research-2026-06-02.md`.
 
 When a new undocumented route is discovered, record:
 

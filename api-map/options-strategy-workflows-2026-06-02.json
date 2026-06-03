@@ -1,0 +1,1382 @@
+[
+  {
+    "id": "long-call",
+    "title": "Long call",
+    "category": "single-leg",
+    "marketView": "Bullish directional move above strike plus premium.",
+    "volatilityView": "Benefits from rising implied volatility before expiration.",
+    "aggressiveness": "moderate",
+    "definedRisk": true,
+    "requiresMargin": false,
+    "requiresUnderlying": false,
+    "payoff": {
+      "maxProfit": "Theoretically unlimited above breakeven.",
+      "maxLoss": "Premium paid plus fees.",
+      "breakevens": ["strike + net_debit"]
+    },
+    "greekProfile": {
+      "delta": "Positive, increases as the call moves in the money.",
+      "gamma": "Positive, larger near the money and near expiration.",
+      "theta": "Negative; time decay works against the long option.",
+      "vega": "Positive; higher implied volatility helps.",
+      "rho": "Usually positive for calls, smaller than other Greeks for most retail horizons."
+    },
+    "legs": [
+      {
+        "id": "long_call",
+        "action": "buy",
+        "optionType": "call",
+        "strikeRole": "target_call_strike",
+        "positionEffect": "open",
+        "ratioQuantity": 1,
+        "optionPlaceholder": "long_call_option_id"
+      }
+    ],
+    "lookupSteps": [
+      "GET https://api.robinhood.com/options/chains/?account_number={account_number}&underlying_symbol={symbol}",
+      "GET https://api.robinhood.com/options/instruments/?account_number={account_number}&chain_id={chain_id}&expiration_dates={expiration}&state=active&type=call",
+      "GET https://api.robinhood.com/marketdata/options/?ids={long_call_option_id}&include_all_sessions=true"
+    ],
+    "orderTemplate": {
+      "account": "https://api.robinhood.com/accounts/{account_number}/",
+      "direction": "debit",
+      "legs": [
+        {
+          "side": "buy",
+          "option": "https://api.robinhood.com/options/instruments/{long_call_option_id}/",
+          "position_effect": "open",
+          "ratio_quantity": 1
+        }
+      ],
+      "type": "limit",
+      "time_in_force": "{time_in_force}",
+      "trigger": "immediate",
+      "price": "{limit_price}",
+      "quantity": "{quantity}",
+      "ref_id": "{ref_id}"
+    },
+    "riskNotes": [
+      "Defined-risk long premium trade, but a 100 percent premium loss is possible.",
+      "Avoid market orders on wide bid/ask contracts; use limit price and check open interest."
+    ],
+    "cliGuidance": "Use options chain to pick expiration/strike, then options strategy-plan long-call with account_number, chain_id, expiration, long_call_option_id, limit_price, quantity, time_in_force, and ref_id.",
+    "sources": [
+      "https://www.finra.org/investors/investing/investment-products/options",
+      "https://www.theocc.com/company-information/documents-and-archives/options-disclosure-document"
+    ]
+  },
+  {
+    "id": "long-put",
+    "title": "Long put",
+    "category": "single-leg",
+    "marketView": "Bearish directional move below strike minus premium, or protective hedge.",
+    "volatilityView": "Benefits from rising implied volatility before expiration.",
+    "aggressiveness": "moderate",
+    "definedRisk": true,
+    "requiresMargin": false,
+    "requiresUnderlying": false,
+    "payoff": {
+      "maxProfit": "Substantial but capped by underlying going to zero: strike - net_debit.",
+      "maxLoss": "Premium paid plus fees.",
+      "breakevens": ["strike - net_debit"]
+    },
+    "greekProfile": {
+      "delta": "Negative, becomes more negative as the put moves in the money.",
+      "gamma": "Positive, larger near the money and near expiration.",
+      "theta": "Negative; time decay works against the long option.",
+      "vega": "Positive; higher implied volatility helps.",
+      "rho": "Usually negative for puts."
+    },
+    "legs": [
+      {
+        "id": "long_put",
+        "action": "buy",
+        "optionType": "put",
+        "strikeRole": "target_put_strike",
+        "positionEffect": "open",
+        "ratioQuantity": 1,
+        "optionPlaceholder": "long_put_option_id"
+      }
+    ],
+    "lookupSteps": [
+      "GET https://api.robinhood.com/options/chains/?account_number={account_number}&underlying_symbol={symbol}",
+      "GET https://api.robinhood.com/options/instruments/?account_number={account_number}&chain_id={chain_id}&expiration_dates={expiration}&state=active&type=put",
+      "GET https://api.robinhood.com/marketdata/options/?ids={long_put_option_id}&include_all_sessions=true"
+    ],
+    "orderTemplate": {
+      "account": "https://api.robinhood.com/accounts/{account_number}/",
+      "direction": "debit",
+      "legs": [
+        {
+          "side": "buy",
+          "option": "https://api.robinhood.com/options/instruments/{long_put_option_id}/",
+          "position_effect": "open",
+          "ratio_quantity": 1
+        }
+      ],
+      "type": "limit",
+      "time_in_force": "{time_in_force}",
+      "trigger": "immediate",
+      "price": "{limit_price}",
+      "quantity": "{quantity}",
+      "ref_id": "{ref_id}"
+    },
+    "riskNotes": [
+      "Defined-risk premium trade; max loss is the debit paid.",
+      "Check whether this is an opening speculation or a hedge against owned shares."
+    ],
+    "cliGuidance": "Use the put chain and marketdata route first; then dry-run the single-leg debit order.",
+    "sources": [
+      "https://www.finra.org/investors/investing/investment-products/options",
+      "https://www.theocc.com/company-information/documents-and-archives/options-disclosure-document"
+    ]
+  },
+  {
+    "id": "sell-to-close-long-option",
+    "title": "Sell to close an existing long option",
+    "category": "position-management",
+    "marketView": "Exit, trim, or take profit/loss on an existing long option.",
+    "volatilityView": "Neutral; closes existing Greek exposure.",
+    "aggressiveness": "conservative",
+    "definedRisk": true,
+    "requiresMargin": false,
+    "requiresUnderlying": false,
+    "payoff": {
+      "maxProfit": "Exit value received minus opening cost.",
+      "maxLoss": "No new opening risk if position_effect is close and quantity does not exceed held quantity.",
+      "breakevens": ["existing_cost_basis"]
+    },
+    "greekProfile": {
+      "delta": "Reduces or removes the existing position delta.",
+      "gamma": "Reduces or removes the existing long gamma.",
+      "theta": "Stops paying theta on the closed contracts.",
+      "vega": "Reduces or removes long vega.",
+      "rho": "Reduces or removes existing rho exposure."
+    },
+    "legs": [
+      {
+        "id": "close_long_option",
+        "action": "sell",
+        "optionType": "call",
+        "strikeRole": "held_contract",
+        "positionEffect": "close",
+        "ratioQuantity": 1,
+        "optionPlaceholder": "held_option_id",
+        "notes": "optionType can be call or put; use the held instrument id."
+      }
+    ],
+    "lookupSteps": [
+      "GET https://api.robinhood.com/options/aggregate_positions/?account_numbers={account_number}&nonzero=True",
+      "GET https://api.robinhood.com/marketdata/options/?ids={held_option_id}&include_all_sessions=true"
+    ],
+    "orderTemplate": {
+      "account": "https://api.robinhood.com/accounts/{account_number}/",
+      "direction": "credit",
+      "legs": [
+        {
+          "side": "sell",
+          "option": "https://api.robinhood.com/options/instruments/{held_option_id}/",
+          "position_effect": "close",
+          "ratio_quantity": 1
+        }
+      ],
+      "type": "limit",
+      "time_in_force": "{time_in_force}",
+      "trigger": "immediate",
+      "price": "{limit_price}",
+      "quantity": "{quantity}",
+      "ref_id": "{ref_id}"
+    },
+    "riskNotes": [
+      "Do not allow position_effect=open for this workflow.",
+      "Quantity must be less than or equal to the currently held long option quantity."
+    ],
+    "cliGuidance": "Prefer this workflow for closing longs; validate held_option_id from aggregate_positions before dry-running options/orders.",
+    "sources": [
+      "https://www.theocc.com/company-information/documents-and-archives/options-disclosure-document"
+    ]
+  },
+  {
+    "id": "covered-call",
+    "title": "Covered call",
+    "category": "income",
+    "marketView": "Neutral to moderately bullish on stock already owned; willing to sell shares at strike.",
+    "volatilityView": "Benefits from time decay and lower implied volatility after entry.",
+    "aggressiveness": "conservative",
+    "definedRisk": false,
+    "requiresMargin": false,
+    "requiresUnderlying": true,
+    "payoff": {
+      "maxProfit": "Call credit plus stock appreciation up to strike.",
+      "maxLoss": "Stock downside less credit; large if stock falls sharply.",
+      "breakevens": ["stock_cost_basis - net_credit"]
+    },
+    "greekProfile": {
+      "delta": "Net positive but less positive than long stock alone.",
+      "gamma": "Short gamma from the call.",
+      "theta": "Positive from short option decay.",
+      "vega": "Negative; falling implied volatility helps.",
+      "rho": "Small; depends on call and stock financing context."
+    },
+    "legs": [
+      {
+        "id": "short_call",
+        "action": "sell",
+        "optionType": "call",
+        "strikeRole": "covered_call_strike",
+        "positionEffect": "open",
+        "ratioQuantity": 1,
+        "optionPlaceholder": "short_call_option_id"
+      }
+    ],
+    "lookupSteps": [
+      "GET https://api.robinhood.com/positions/?account_number={account_number}&instrument={underlying_instrument_id}&nonzero=true",
+      "GET https://api.robinhood.com/options/instruments/?account_number={account_number}&chain_id={chain_id}&expiration_dates={expiration}&state=active&type=call",
+      "GET https://api.robinhood.com/marketdata/options/?ids={short_call_option_id}&include_all_sessions=true"
+    ],
+    "orderTemplate": {
+      "account": "https://api.robinhood.com/accounts/{account_number}/",
+      "direction": "credit",
+      "legs": [
+        {
+          "side": "sell",
+          "option": "https://api.robinhood.com/options/instruments/{short_call_option_id}/",
+          "position_effect": "open",
+          "ratio_quantity": 1
+        }
+      ],
+      "type": "limit",
+      "time_in_force": "{time_in_force}",
+      "trigger": "immediate",
+      "price": "{limit_price}",
+      "quantity": "{quantity}",
+      "ref_id": "{ref_id}"
+    },
+    "riskNotes": [
+      "Covered means 100 shares per short call are already held in the same account.",
+      "Assignment can sell shares at the strike, including before expiration around dividends."
+    ],
+    "cliGuidance": "Before planning the order, verify enough underlying shares in the target account. This is not a naked short-call workflow.",
+    "sources": [
+      "https://www.theocc.com/company-information/documents-and-archives/options-disclosure-document"
+    ]
+  },
+  {
+    "id": "cash-secured-short-put",
+    "title": "Cash-secured short put",
+    "category": "income",
+    "marketView": "Neutral to bullish; willing to buy shares at strike.",
+    "volatilityView": "Benefits from time decay and lower implied volatility after entry.",
+    "aggressiveness": "moderate",
+    "definedRisk": false,
+    "requiresMargin": false,
+    "requiresUnderlying": false,
+    "payoff": {
+      "maxProfit": "Net credit received.",
+      "maxLoss": "Strike minus credit, if assigned and underlying goes to zero.",
+      "breakevens": ["strike - net_credit"]
+    },
+    "greekProfile": {
+      "delta": "Positive; short put behaves directionally bullish.",
+      "gamma": "Short gamma.",
+      "theta": "Positive.",
+      "vega": "Negative.",
+      "rho": "Usually positive for a short put."
+    },
+    "legs": [
+      {
+        "id": "short_put",
+        "action": "sell",
+        "optionType": "put",
+        "strikeRole": "cash_secured_put_strike",
+        "positionEffect": "open",
+        "ratioQuantity": 1,
+        "optionPlaceholder": "short_put_option_id"
+      }
+    ],
+    "lookupSteps": [
+      "GET https://bonfire.robinhood.com/accounts/{account_number}/currency_buying_power/USD/",
+      "GET https://api.robinhood.com/options/instruments/?account_number={account_number}&chain_id={chain_id}&expiration_dates={expiration}&state=active&type=put",
+      "GET https://api.robinhood.com/marketdata/options/?ids={short_put_option_id}&include_all_sessions=true"
+    ],
+    "orderTemplate": {
+      "account": "https://api.robinhood.com/accounts/{account_number}/",
+      "direction": "credit",
+      "legs": [
+        {
+          "side": "sell",
+          "option": "https://api.robinhood.com/options/instruments/{short_put_option_id}/",
+          "position_effect": "open",
+          "ratio_quantity": 1
+        }
+      ],
+      "type": "limit",
+      "time_in_force": "{time_in_force}",
+      "trigger": "immediate",
+      "price": "{limit_price}",
+      "quantity": "{quantity}",
+      "ref_id": "{ref_id}"
+    },
+    "riskNotes": [
+      "Cash-secured means cash collateral is available for 100 shares per contract.",
+      "If not cash-secured, this becomes a margin short put with higher liquidation and assignment risk."
+    ],
+    "cliGuidance": "Verify cash buying power and assignment willingness before any live write. Treat naked short puts as a different, higher-risk approval path.",
+    "sources": [
+      "https://www.theocc.com/company-information/documents-and-archives/options-disclosure-document"
+    ]
+  },
+  {
+    "id": "naked-short-call",
+    "title": "Naked short call",
+    "category": "undefined-risk",
+    "marketView": "Bearish to neutral; expects underlying not to rise above strike.",
+    "volatilityView": "Benefits from time decay and lower implied volatility after entry.",
+    "aggressiveness": "aggressive",
+    "definedRisk": false,
+    "requiresMargin": true,
+    "requiresUnderlying": false,
+    "payoff": {
+      "maxProfit": "Net credit received.",
+      "maxLoss": "Theoretically unlimited as underlying rises.",
+      "breakevens": ["strike + net_credit"]
+    },
+    "greekProfile": {
+      "delta": "Negative.",
+      "gamma": "Short gamma; losses can accelerate as price rises.",
+      "theta": "Positive.",
+      "vega": "Negative.",
+      "rho": "Usually negative for a short call."
+    },
+    "legs": [
+      {
+        "id": "short_call",
+        "action": "sell",
+        "optionType": "call",
+        "strikeRole": "naked_call_strike",
+        "positionEffect": "open",
+        "ratioQuantity": 1,
+        "optionPlaceholder": "short_call_option_id"
+      }
+    ],
+    "lookupSteps": [
+      "GET https://api.robinhood.com/options/option_settings/{account_number}/",
+      "GET https://bonfire.robinhood.com/margin/{account_number}/settings/",
+      "GET https://api.robinhood.com/options/instruments/?account_number={account_number}&chain_id={chain_id}&expiration_dates={expiration}&state=active&type=call",
+      "GET https://api.robinhood.com/marketdata/options/?ids={short_call_option_id}&include_all_sessions=true"
+    ],
+    "orderTemplate": {
+      "account": "https://api.robinhood.com/accounts/{account_number}/",
+      "direction": "credit",
+      "legs": [
+        {
+          "side": "sell",
+          "option": "https://api.robinhood.com/options/instruments/{short_call_option_id}/",
+          "position_effect": "open",
+          "ratio_quantity": 1
+        }
+      ],
+      "type": "limit",
+      "time_in_force": "{time_in_force}",
+      "trigger": "immediate",
+      "price": "{limit_price}",
+      "quantity": "{quantity}",
+      "ref_id": "{ref_id}"
+    },
+    "riskNotes": [
+      "Undefined-risk strategy; max loss is theoretically unlimited.",
+      "Requires exact user approval and margin/option-level validation before any live write.",
+      "Prefer a defined-risk call credit spread unless the user explicitly requests naked exposure."
+    ],
+    "cliGuidance": "Keep this as an explicitly named aggressive strategy. Never infer naked short-call intent from a generic 'sell a call' request.",
+    "sources": [
+      "https://www.theocc.com/company-information/documents-and-archives/options-disclosure-document"
+    ]
+  },
+  {
+    "id": "call-credit-spread",
+    "title": "Call credit spread",
+    "category": "vertical-spread",
+    "marketView": "Bearish to neutral; short lower strike call, long higher strike call.",
+    "volatilityView": "Benefits from time decay and often from lower implied volatility.",
+    "aggressiveness": "moderate",
+    "definedRisk": true,
+    "requiresMargin": true,
+    "requiresUnderlying": false,
+    "payoff": {
+      "maxProfit": "Net credit received.",
+      "maxLoss": "Width between strikes minus net credit.",
+      "breakevens": ["short_call_strike + net_credit"]
+    },
+    "greekProfile": {
+      "delta": "Net negative.",
+      "gamma": "Net short gamma, partially hedged by long call wing.",
+      "theta": "Usually positive.",
+      "vega": "Usually negative.",
+      "rho": "Small net exposure."
+    },
+    "legs": [
+      {
+        "id": "short_call",
+        "action": "sell",
+        "optionType": "call",
+        "strikeRole": "lower_call_strike",
+        "positionEffect": "open",
+        "ratioQuantity": 1,
+        "optionPlaceholder": "short_call_option_id"
+      },
+      {
+        "id": "long_call",
+        "action": "buy",
+        "optionType": "call",
+        "strikeRole": "higher_call_strike",
+        "positionEffect": "open",
+        "ratioQuantity": 1,
+        "optionPlaceholder": "long_call_option_id"
+      }
+    ],
+    "lookupSteps": [
+      "GET https://api.robinhood.com/options/chains/?account_number={account_number}&underlying_symbol={symbol}",
+      "GET https://api.robinhood.com/options/instruments/?account_number={account_number}&chain_id={chain_id}&expiration_dates={expiration}&state=active&type=call",
+      "GET https://api.robinhood.com/marketdata/options/strategy/quotes/?legs={strategy_legs}"
+    ],
+    "orderTemplate": {
+      "account": "https://api.robinhood.com/accounts/{account_number}/",
+      "direction": "credit",
+      "legs": [
+        {
+          "side": "sell",
+          "option": "https://api.robinhood.com/options/instruments/{short_call_option_id}/",
+          "position_effect": "open",
+          "ratio_quantity": 1
+        },
+        {
+          "side": "buy",
+          "option": "https://api.robinhood.com/options/instruments/{long_call_option_id}/",
+          "position_effect": "open",
+          "ratio_quantity": 1
+        }
+      ],
+      "type": "limit",
+      "time_in_force": "{time_in_force}",
+      "trigger": "immediate",
+      "price": "{limit_price}",
+      "quantity": "{quantity}",
+      "ref_id": "{ref_id}"
+    },
+    "riskNotes": [
+      "Defined-risk alternative to a naked short call.",
+      "Confirm long call strike is higher than short call strike and both expire on the same date."
+    ],
+    "cliGuidance": "This matches the user-observed builder shape: sell lower call and buy higher call for a net credit. Use strategy quote route when available, otherwise compute mid from leg quotes.",
+    "sources": [
+      "https://www.finra.org/investors/investing/investment-products/options",
+      "https://www.theocc.com/company-information/documents-and-archives/options-disclosure-document"
+    ]
+  },
+  {
+    "id": "put-credit-spread",
+    "title": "Put credit spread",
+    "category": "vertical-spread",
+    "marketView": "Bullish to neutral; short higher strike put, long lower strike put.",
+    "volatilityView": "Benefits from time decay and often from lower implied volatility.",
+    "aggressiveness": "moderate",
+    "definedRisk": true,
+    "requiresMargin": true,
+    "requiresUnderlying": false,
+    "payoff": {
+      "maxProfit": "Net credit received.",
+      "maxLoss": "Width between strikes minus net credit.",
+      "breakevens": ["short_put_strike - net_credit"]
+    },
+    "greekProfile": {
+      "delta": "Net positive.",
+      "gamma": "Net short gamma, partially hedged by long put wing.",
+      "theta": "Usually positive.",
+      "vega": "Usually negative.",
+      "rho": "Small net exposure."
+    },
+    "legs": [
+      {
+        "id": "short_put",
+        "action": "sell",
+        "optionType": "put",
+        "strikeRole": "higher_put_strike",
+        "positionEffect": "open",
+        "ratioQuantity": 1,
+        "optionPlaceholder": "short_put_option_id"
+      },
+      {
+        "id": "long_put",
+        "action": "buy",
+        "optionType": "put",
+        "strikeRole": "lower_put_strike",
+        "positionEffect": "open",
+        "ratioQuantity": 1,
+        "optionPlaceholder": "long_put_option_id"
+      }
+    ],
+    "lookupSteps": [
+      "GET https://api.robinhood.com/options/chains/?account_number={account_number}&underlying_symbol={symbol}",
+      "GET https://api.robinhood.com/options/instruments/?account_number={account_number}&chain_id={chain_id}&expiration_dates={expiration}&state=active&type=put",
+      "GET https://api.robinhood.com/marketdata/options/strategy/quotes/?legs={strategy_legs}"
+    ],
+    "orderTemplate": {
+      "account": "https://api.robinhood.com/accounts/{account_number}/",
+      "direction": "credit",
+      "legs": [
+        {
+          "side": "sell",
+          "option": "https://api.robinhood.com/options/instruments/{short_put_option_id}/",
+          "position_effect": "open",
+          "ratio_quantity": 1
+        },
+        {
+          "side": "buy",
+          "option": "https://api.robinhood.com/options/instruments/{long_put_option_id}/",
+          "position_effect": "open",
+          "ratio_quantity": 1
+        }
+      ],
+      "type": "limit",
+      "time_in_force": "{time_in_force}",
+      "trigger": "immediate",
+      "price": "{limit_price}",
+      "quantity": "{quantity}",
+      "ref_id": "{ref_id}"
+    },
+    "riskNotes": [
+      "Defined-risk alternative to a cash-secured or naked short put.",
+      "Confirm long put strike is lower than short put strike and both expire on the same date."
+    ],
+    "cliGuidance": "Use for defined-risk bullish premium selling. Check options buying power before any live attempt.",
+    "sources": [
+      "https://www.theocc.com/company-information/documents-and-archives/options-disclosure-document"
+    ]
+  },
+  {
+    "id": "long-straddle",
+    "title": "Long straddle",
+    "category": "volatility",
+    "marketView": "Large move either direction; directionally neutral at entry.",
+    "volatilityView": "Long volatility; benefits from rising implied volatility and realized movement.",
+    "aggressiveness": "moderate",
+    "definedRisk": true,
+    "requiresMargin": false,
+    "requiresUnderlying": false,
+    "payoff": {
+      "maxProfit": "Large upside if underlying moves far enough; put side capped by underlying going to zero.",
+      "maxLoss": "Total net debit paid.",
+      "breakevens": ["strike + net_debit", "strike - net_debit"]
+    },
+    "greekProfile": {
+      "delta": "Near zero at entry if at the money, then becomes directional as price moves.",
+      "gamma": "Strong positive gamma.",
+      "theta": "Strong negative theta.",
+      "vega": "Strong positive vega.",
+      "rho": "Small mixed exposure."
+    },
+    "legs": [
+      {
+        "id": "long_call",
+        "action": "buy",
+        "optionType": "call",
+        "strikeRole": "same_atm_strike",
+        "positionEffect": "open",
+        "ratioQuantity": 1,
+        "optionPlaceholder": "long_call_option_id"
+      },
+      {
+        "id": "long_put",
+        "action": "buy",
+        "optionType": "put",
+        "strikeRole": "same_atm_strike",
+        "positionEffect": "open",
+        "ratioQuantity": 1,
+        "optionPlaceholder": "long_put_option_id"
+      }
+    ],
+    "lookupSteps": [
+      "GET https://api.robinhood.com/options/chains/?account_number={account_number}&underlying_symbol={symbol}",
+      "GET https://api.robinhood.com/options/instruments/?account_number={account_number}&chain_id={chain_id}&expiration_dates={expiration}&state=active&type=call",
+      "GET https://api.robinhood.com/options/instruments/?account_number={account_number}&chain_id={chain_id}&expiration_dates={expiration}&state=active&type=put",
+      "GET https://api.robinhood.com/marketdata/options/strategy/quotes/?legs={strategy_legs}"
+    ],
+    "orderTemplate": {
+      "account": "https://api.robinhood.com/accounts/{account_number}/",
+      "direction": "debit",
+      "legs": [
+        {
+          "side": "buy",
+          "option": "https://api.robinhood.com/options/instruments/{long_call_option_id}/",
+          "position_effect": "open",
+          "ratio_quantity": 1
+        },
+        {
+          "side": "buy",
+          "option": "https://api.robinhood.com/options/instruments/{long_put_option_id}/",
+          "position_effect": "open",
+          "ratio_quantity": 1
+        }
+      ],
+      "type": "limit",
+      "time_in_force": "{time_in_force}",
+      "trigger": "immediate",
+      "price": "{limit_price}",
+      "quantity": "{quantity}",
+      "ref_id": "{ref_id}"
+    },
+    "riskNotes": [
+      "Needs a large move or volatility expansion; theta decay can be severe.",
+      "Both legs should use same strike and expiration."
+    ],
+    "cliGuidance": "Use for event-volatility research and dry-run only unless the user explicitly requests a live debit strategy.",
+    "sources": [
+      "https://www.finra.org/investors/investing/investment-products/options",
+      "https://www.theocc.com/company-information/documents-and-archives/options-disclosure-document"
+    ]
+  },
+  {
+    "id": "short-straddle",
+    "title": "Short straddle",
+    "category": "undefined-risk",
+    "marketView": "Underlying stays near strike.",
+    "volatilityView": "Short volatility; benefits from implied volatility collapse and time decay.",
+    "aggressiveness": "aggressive",
+    "definedRisk": false,
+    "requiresMargin": true,
+    "requiresUnderlying": false,
+    "payoff": {
+      "maxProfit": "Net credit received.",
+      "maxLoss": "Large downside if underlying collapses and theoretically unlimited upside if underlying rallies.",
+      "breakevens": ["strike + net_credit", "strike - net_credit"]
+    },
+    "greekProfile": {
+      "delta": "Near zero at entry, then becomes increasingly directional against the move.",
+      "gamma": "Strong short gamma.",
+      "theta": "Strong positive theta.",
+      "vega": "Strong negative vega.",
+      "rho": "Small mixed exposure."
+    },
+    "legs": [
+      {
+        "id": "short_call",
+        "action": "sell",
+        "optionType": "call",
+        "strikeRole": "same_atm_strike",
+        "positionEffect": "open",
+        "ratioQuantity": 1,
+        "optionPlaceholder": "short_call_option_id"
+      },
+      {
+        "id": "short_put",
+        "action": "sell",
+        "optionType": "put",
+        "strikeRole": "same_atm_strike",
+        "positionEffect": "open",
+        "ratioQuantity": 1,
+        "optionPlaceholder": "short_put_option_id"
+      }
+    ],
+    "lookupSteps": [
+      "GET https://api.robinhood.com/options/option_settings/{account_number}/",
+      "GET https://api.robinhood.com/options/instruments/?account_number={account_number}&chain_id={chain_id}&expiration_dates={expiration}&state=active&type=call",
+      "GET https://api.robinhood.com/options/instruments/?account_number={account_number}&chain_id={chain_id}&expiration_dates={expiration}&state=active&type=put",
+      "GET https://api.robinhood.com/marketdata/options/strategy/quotes/?legs={strategy_legs}"
+    ],
+    "orderTemplate": {
+      "account": "https://api.robinhood.com/accounts/{account_number}/",
+      "direction": "credit",
+      "legs": [
+        {
+          "side": "sell",
+          "option": "https://api.robinhood.com/options/instruments/{short_call_option_id}/",
+          "position_effect": "open",
+          "ratio_quantity": 1
+        },
+        {
+          "side": "sell",
+          "option": "https://api.robinhood.com/options/instruments/{short_put_option_id}/",
+          "position_effect": "open",
+          "ratio_quantity": 1
+        }
+      ],
+      "type": "limit",
+      "time_in_force": "{time_in_force}",
+      "trigger": "immediate",
+      "price": "{limit_price}",
+      "quantity": "{quantity}",
+      "ref_id": "{ref_id}"
+    },
+    "riskNotes": [
+      "Undefined-risk short-volatility strategy with severe gap and assignment risk.",
+      "Never infer this from a generic 'sell premium' request; require exact strategy confirmation."
+    ],
+    "cliGuidance": "Keep as research/planning unless the user explicitly asks for a live short straddle and all gates/eligibility checks pass.",
+    "sources": [
+      "https://www.theocc.com/company-information/documents-and-archives/options-disclosure-document"
+    ]
+  },
+  {
+    "id": "long-call-butterfly",
+    "title": "Long call butterfly",
+    "category": "defined-risk-spread",
+    "marketView": "Underlying pins near the middle strike at expiration.",
+    "volatilityView": "Often benefits from time decay near the body and lower implied volatility.",
+    "aggressiveness": "moderate",
+    "definedRisk": true,
+    "requiresMargin": true,
+    "requiresUnderlying": false,
+    "payoff": {
+      "maxProfit": "Middle strike pin value minus net debit.",
+      "maxLoss": "Net debit paid.",
+      "breakevens": ["lower_strike + net_debit", "upper_strike - net_debit"]
+    },
+    "greekProfile": {
+      "delta": "Near neutral around body strike, directional if price moves away.",
+      "gamma": "Can be positive or negative depending on spot relative to body and time.",
+      "theta": "Usually positive near the body, negative far away.",
+      "vega": "Usually negative near the body.",
+      "rho": "Small net exposure."
+    },
+    "legs": [
+      {
+        "id": "long_lower_call",
+        "action": "buy",
+        "optionType": "call",
+        "strikeRole": "lower_call_strike",
+        "positionEffect": "open",
+        "ratioQuantity": 1,
+        "optionPlaceholder": "long_lower_call_option_id"
+      },
+      {
+        "id": "short_middle_call",
+        "action": "sell",
+        "optionType": "call",
+        "strikeRole": "middle_call_strike",
+        "positionEffect": "open",
+        "ratioQuantity": 2,
+        "optionPlaceholder": "short_middle_call_option_id"
+      },
+      {
+        "id": "long_upper_call",
+        "action": "buy",
+        "optionType": "call",
+        "strikeRole": "upper_call_strike",
+        "positionEffect": "open",
+        "ratioQuantity": 1,
+        "optionPlaceholder": "long_upper_call_option_id"
+      }
+    ],
+    "lookupSteps": [
+      "GET https://api.robinhood.com/options/instruments/?account_number={account_number}&chain_id={chain_id}&expiration_dates={expiration}&state=active&type=call",
+      "GET https://api.robinhood.com/marketdata/options/strategy/quotes/?legs={strategy_legs}"
+    ],
+    "orderTemplate": {
+      "account": "https://api.robinhood.com/accounts/{account_number}/",
+      "direction": "debit",
+      "legs": [
+        {
+          "side": "buy",
+          "option": "https://api.robinhood.com/options/instruments/{long_lower_call_option_id}/",
+          "position_effect": "open",
+          "ratio_quantity": 1
+        },
+        {
+          "side": "sell",
+          "option": "https://api.robinhood.com/options/instruments/{short_middle_call_option_id}/",
+          "position_effect": "open",
+          "ratio_quantity": 2
+        },
+        {
+          "side": "buy",
+          "option": "https://api.robinhood.com/options/instruments/{long_upper_call_option_id}/",
+          "position_effect": "open",
+          "ratio_quantity": 1
+        }
+      ],
+      "type": "limit",
+      "time_in_force": "{time_in_force}",
+      "trigger": "immediate",
+      "price": "{limit_price}",
+      "quantity": "{quantity}",
+      "ref_id": "{ref_id}"
+    },
+    "riskNotes": [
+      "All legs should share expiration and use evenly spaced strikes unless intentionally building a broken-wing butterfly.",
+      "Validate Robinhood accepts ratio_quantity 2 for the short body before any live send."
+    ],
+    "cliGuidance": "Use as a dry-run strategy template first. If Robinhood rejects ratio_quantity 2, split into accepted combo order shape captured from Legend.",
+    "sources": [
+      "https://www.theocc.com/company-information/documents-and-archives/options-disclosure-document"
+    ]
+  },
+  {
+    "id": "iron-condor",
+    "title": "Iron condor",
+    "category": "defined-risk-spread",
+    "marketView": "Range-bound underlying between short strikes.",
+    "volatilityView": "Short volatility; benefits from time decay and lower implied volatility.",
+    "aggressiveness": "moderate",
+    "definedRisk": true,
+    "requiresMargin": true,
+    "requiresUnderlying": false,
+    "payoff": {
+      "maxProfit": "Net credit received.",
+      "maxLoss": "Wider wing width minus net credit.",
+      "breakevens": ["short_put_strike - net_credit", "short_call_strike + net_credit"]
+    },
+    "greekProfile": {
+      "delta": "Near neutral if centered.",
+      "gamma": "Short gamma, defined by long wings.",
+      "theta": "Positive.",
+      "vega": "Negative.",
+      "rho": "Small mixed exposure."
+    },
+    "legs": [
+      {
+        "id": "long_put_wing",
+        "action": "buy",
+        "optionType": "put",
+        "strikeRole": "lower_put_wing",
+        "positionEffect": "open",
+        "ratioQuantity": 1,
+        "optionPlaceholder": "long_put_option_id"
+      },
+      {
+        "id": "short_put_body",
+        "action": "sell",
+        "optionType": "put",
+        "strikeRole": "short_put_strike",
+        "positionEffect": "open",
+        "ratioQuantity": 1,
+        "optionPlaceholder": "short_put_option_id"
+      },
+      {
+        "id": "short_call_body",
+        "action": "sell",
+        "optionType": "call",
+        "strikeRole": "short_call_strike",
+        "positionEffect": "open",
+        "ratioQuantity": 1,
+        "optionPlaceholder": "short_call_option_id"
+      },
+      {
+        "id": "long_call_wing",
+        "action": "buy",
+        "optionType": "call",
+        "strikeRole": "upper_call_wing",
+        "positionEffect": "open",
+        "ratioQuantity": 1,
+        "optionPlaceholder": "long_call_option_id"
+      }
+    ],
+    "lookupSteps": [
+      "GET https://api.robinhood.com/options/chains/?account_number={account_number}&underlying_symbol={symbol}",
+      "GET https://api.robinhood.com/options/instruments/?account_number={account_number}&chain_id={chain_id}&expiration_dates={expiration}&state=active&type=put",
+      "GET https://api.robinhood.com/options/instruments/?account_number={account_number}&chain_id={chain_id}&expiration_dates={expiration}&state=active&type=call",
+      "GET https://api.robinhood.com/marketdata/options/strategy/quotes/?legs={strategy_legs}"
+    ],
+    "orderTemplate": {
+      "account": "https://api.robinhood.com/accounts/{account_number}/",
+      "direction": "credit",
+      "legs": [
+        {
+          "side": "buy",
+          "option": "https://api.robinhood.com/options/instruments/{long_put_option_id}/",
+          "position_effect": "open",
+          "ratio_quantity": 1
+        },
+        {
+          "side": "sell",
+          "option": "https://api.robinhood.com/options/instruments/{short_put_option_id}/",
+          "position_effect": "open",
+          "ratio_quantity": 1
+        },
+        {
+          "side": "sell",
+          "option": "https://api.robinhood.com/options/instruments/{short_call_option_id}/",
+          "position_effect": "open",
+          "ratio_quantity": 1
+        },
+        {
+          "side": "buy",
+          "option": "https://api.robinhood.com/options/instruments/{long_call_option_id}/",
+          "position_effect": "open",
+          "ratio_quantity": 1
+        }
+      ],
+      "type": "limit",
+      "time_in_force": "{time_in_force}",
+      "trigger": "immediate",
+      "price": "{limit_price}",
+      "quantity": "{quantity}",
+      "ref_id": "{ref_id}"
+    },
+    "riskNotes": [
+      "Defined-risk short-volatility trade, but max loss can still be many times the credit.",
+      "All legs must share expiration; long wings should be farther OTM than short strikes."
+    ],
+    "cliGuidance": "Use for range-bound premium selling with explicit wing widths. Always calculate max loss and options buying power before live approval.",
+    "sources": [
+      "https://www.finra.org/investors/investing/investment-products/options",
+      "https://www.theocc.com/company-information/documents-and-archives/options-disclosure-document"
+    ]
+  },
+  {
+    "id": "call-debit-spread",
+    "title": "Call debit spread",
+    "category": "defined-risk-spread",
+    "marketView": "Bullish move toward or above the short call strike.",
+    "volatilityView": "Long directional debit with reduced vega compared with a standalone long call.",
+    "aggressiveness": "moderate",
+    "definedRisk": true,
+    "requiresMargin": false,
+    "requiresUnderlying": false,
+    "payoff": {
+      "maxProfit": "Spread width minus net debit.",
+      "maxLoss": "Net debit paid.",
+      "breakevens": ["long_call_strike + net_debit"]
+    },
+    "greekProfile": {
+      "delta": "Net positive, capped by the short call.",
+      "gamma": "Positive near the long strike, reduced by the short call.",
+      "theta": "Mixed; less negative than a standalone long call.",
+      "vega": "Usually positive but reduced.",
+      "rho": "Small positive net exposure."
+    },
+    "legs": [
+      {
+        "id": "long_call",
+        "action": "buy",
+        "optionType": "call",
+        "strikeRole": "lower_long_call",
+        "positionEffect": "open",
+        "ratioQuantity": 1,
+        "optionPlaceholder": "long_call_option_id"
+      },
+      {
+        "id": "short_call",
+        "action": "sell",
+        "optionType": "call",
+        "strikeRole": "higher_short_call",
+        "positionEffect": "open",
+        "ratioQuantity": 1,
+        "optionPlaceholder": "short_call_option_id"
+      }
+    ],
+    "lookupSteps": [
+      "GET https://api.robinhood.com/options/chains/?account_number={account_number}&underlying_symbol={symbol}",
+      "GET https://api.robinhood.com/options/instruments/?account_number={account_number}&chain_id={chain_id}&expiration_dates={expiration}&state=active&type=call",
+      "GET https://api.robinhood.com/marketdata/options/strategy/quotes/?ids={strategy_ids}&ratios={ratios}&types={types}"
+    ],
+    "orderTemplate": {
+      "account": "https://api.robinhood.com/accounts/{account_number}/",
+      "direction": "debit",
+      "legs": [
+        {
+          "side": "buy",
+          "option": "https://api.robinhood.com/options/instruments/{long_call_option_id}/",
+          "position_effect": "open",
+          "ratio_quantity": 1
+        },
+        {
+          "side": "sell",
+          "option": "https://api.robinhood.com/options/instruments/{short_call_option_id}/",
+          "position_effect": "open",
+          "ratio_quantity": 1
+        }
+      ],
+      "type": "limit",
+      "time_in_force": "{time_in_force}",
+      "trigger": "immediate",
+      "price": "{limit_price}",
+      "quantity": "{quantity}",
+      "ref_id": "{ref_id}"
+    },
+    "riskNotes": [
+      "Defined-risk debit spread, but max profit is capped.",
+      "Both calls should share expiration; verify strikes are ordered lower long, higher short."
+    ],
+    "cliGuidance": "Use when the user wants bullish defined-risk exposure instead of an outright long call.",
+    "sources": [
+      "https://www.theocc.com/company-information/documents-and-archives/options-disclosure-document"
+    ]
+  },
+  {
+    "id": "put-debit-spread",
+    "title": "Put debit spread",
+    "category": "defined-risk-spread",
+    "marketView": "Bearish move toward or below the short put strike.",
+    "volatilityView": "Long directional debit with reduced vega compared with a standalone long put.",
+    "aggressiveness": "moderate",
+    "definedRisk": true,
+    "requiresMargin": false,
+    "requiresUnderlying": false,
+    "payoff": {
+      "maxProfit": "Spread width minus net debit.",
+      "maxLoss": "Net debit paid.",
+      "breakevens": ["long_put_strike - net_debit"]
+    },
+    "greekProfile": {
+      "delta": "Net negative, capped by the short put.",
+      "gamma": "Positive near the long strike, reduced by the short put.",
+      "theta": "Mixed; less negative than a standalone long put.",
+      "vega": "Usually positive but reduced.",
+      "rho": "Small negative net exposure."
+    },
+    "legs": [
+      {
+        "id": "long_put",
+        "action": "buy",
+        "optionType": "put",
+        "strikeRole": "higher_long_put",
+        "positionEffect": "open",
+        "ratioQuantity": 1,
+        "optionPlaceholder": "long_put_option_id"
+      },
+      {
+        "id": "short_put",
+        "action": "sell",
+        "optionType": "put",
+        "strikeRole": "lower_short_put",
+        "positionEffect": "open",
+        "ratioQuantity": 1,
+        "optionPlaceholder": "short_put_option_id"
+      }
+    ],
+    "lookupSteps": [
+      "GET https://api.robinhood.com/options/chains/?account_number={account_number}&underlying_symbol={symbol}",
+      "GET https://api.robinhood.com/options/instruments/?account_number={account_number}&chain_id={chain_id}&expiration_dates={expiration}&state=active&type=put",
+      "GET https://api.robinhood.com/marketdata/options/strategy/quotes/?ids={strategy_ids}&ratios={ratios}&types={types}"
+    ],
+    "orderTemplate": {
+      "account": "https://api.robinhood.com/accounts/{account_number}/",
+      "direction": "debit",
+      "legs": [
+        {
+          "side": "buy",
+          "option": "https://api.robinhood.com/options/instruments/{long_put_option_id}/",
+          "position_effect": "open",
+          "ratio_quantity": 1
+        },
+        {
+          "side": "sell",
+          "option": "https://api.robinhood.com/options/instruments/{short_put_option_id}/",
+          "position_effect": "open",
+          "ratio_quantity": 1
+        }
+      ],
+      "type": "limit",
+      "time_in_force": "{time_in_force}",
+      "trigger": "immediate",
+      "price": "{limit_price}",
+      "quantity": "{quantity}",
+      "ref_id": "{ref_id}"
+    },
+    "riskNotes": [
+      "Defined-risk debit spread, but max profit is capped.",
+      "Both puts should share expiration; verify strikes are ordered higher long, lower short."
+    ],
+    "cliGuidance": "Use when the user wants bearish defined-risk exposure instead of an outright long put.",
+    "sources": [
+      "https://www.theocc.com/company-information/documents-and-archives/options-disclosure-document"
+    ]
+  },
+  {
+    "id": "naked-short-put",
+    "title": "Naked or margin-secured short put",
+    "category": "income",
+    "marketView": "Neutral to bullish; willing or required to buy shares if assigned.",
+    "volatilityView": "Short volatility; benefits from decay and lower implied volatility.",
+    "aggressiveness": "aggressive",
+    "definedRisk": false,
+    "requiresMargin": true,
+    "requiresUnderlying": false,
+    "payoff": {
+      "maxProfit": "Credit received.",
+      "maxLoss": "Large downside: strike minus credit if underlying goes to zero.",
+      "breakevens": ["strike - net_credit"]
+    },
+    "greekProfile": {
+      "delta": "Positive because a sold put benefits from upward price movement.",
+      "gamma": "Negative; losses accelerate as the underlying falls.",
+      "theta": "Positive.",
+      "vega": "Negative.",
+      "rho": "Usually positive for short puts."
+    },
+    "legs": [
+      {
+        "id": "short_put",
+        "action": "sell",
+        "optionType": "put",
+        "strikeRole": "short_put_strike",
+        "positionEffect": "open",
+        "ratioQuantity": 1,
+        "optionPlaceholder": "short_put_option_id"
+      }
+    ],
+    "lookupSteps": [
+      "GET https://api.robinhood.com/options/chains/?account_number={account_number}&underlying_symbol={symbol}",
+      "GET https://api.robinhood.com/options/chains/{chain_id}/collateral/?account_number={account_number}",
+      "GET https://api.robinhood.com/options/instruments/?account_number={account_number}&chain_id={chain_id}&expiration_dates={expiration}&state=active&type=put",
+      "GET https://api.robinhood.com/marketdata/options/?ids={short_put_option_id}&include_all_sessions=true"
+    ],
+    "orderTemplate": {
+      "account": "https://api.robinhood.com/accounts/{account_number}/",
+      "direction": "credit",
+      "legs": [
+        {
+          "side": "sell",
+          "option": "https://api.robinhood.com/options/instruments/{short_put_option_id}/",
+          "position_effect": "open",
+          "ratio_quantity": 1
+        }
+      ],
+      "type": "limit",
+      "time_in_force": "{time_in_force}",
+      "trigger": "immediate",
+      "price": "{limit_price}",
+      "quantity": "{quantity}",
+      "ref_id": "{ref_id}"
+    },
+    "riskNotes": [
+      "Do not treat this as cash-secured unless the account has enough cash collateral and the user requested that exact structure.",
+      "Assignment, margin, and gap risk must be explicit in the dry-run summary."
+    ],
+    "cliGuidance": "Use only when the user explicitly asks for margin/naked short-put exposure; otherwise prefer cash-secured put or put credit spread planning.",
+    "sources": [
+      "https://www.finra.org/investors/investing/investment-products/options",
+      "https://www.theocc.com/company-information/documents-and-archives/options-disclosure-document"
+    ]
+  },
+  {
+    "id": "covered-put",
+    "title": "Covered put",
+    "category": "income",
+    "marketView": "Bearish to neutral; short stock plus short put.",
+    "volatilityView": "Short volatility; benefits from decay, but keeps short-stock upside risk.",
+    "aggressiveness": "aggressive",
+    "definedRisk": false,
+    "requiresMargin": true,
+    "requiresUnderlying": true,
+    "payoff": {
+      "maxProfit": "Short stock gain capped by the short put strike plus credit.",
+      "maxLoss": "Upside risk from the short stock remains theoretically unlimited.",
+      "breakevens": ["short_stock_sale_price + net_credit"]
+    },
+    "greekProfile": {
+      "delta": "Net negative from short stock, partly offset by the short put.",
+      "gamma": "Negative from the short put.",
+      "theta": "Positive from the short put.",
+      "vega": "Negative.",
+      "rho": "Mixed."
+    },
+    "legs": [
+      {
+        "id": "short_put",
+        "action": "sell",
+        "optionType": "put",
+        "strikeRole": "covered_put_strike",
+        "positionEffect": "open",
+        "ratioQuantity": 1,
+        "optionPlaceholder": "short_put_option_id"
+      }
+    ],
+    "lookupSteps": [
+      "GET https://api.robinhood.com/positions/?account_number={account_number}&instrument={underlying_instrument_id}&nonzero=true",
+      "GET https://api.robinhood.com/options/instruments/?account_number={account_number}&chain_id={chain_id}&expiration_dates={expiration}&state=active&type=put",
+      "GET https://api.robinhood.com/marketdata/options/?ids={short_put_option_id}&include_all_sessions=true"
+    ],
+    "orderTemplate": {
+      "account": "https://api.robinhood.com/accounts/{account_number}/",
+      "direction": "credit",
+      "legs": [
+        {
+          "side": "sell",
+          "option": "https://api.robinhood.com/options/instruments/{short_put_option_id}/",
+          "position_effect": "open",
+          "ratio_quantity": 1
+        }
+      ],
+      "type": "limit",
+      "time_in_force": "{time_in_force}",
+      "trigger": "immediate",
+      "price": "{limit_price}",
+      "quantity": "{quantity}",
+      "ref_id": "{ref_id}"
+    },
+    "riskNotes": [
+      "Covered put is not the same as cash-secured put.",
+      "Requires an existing short stock position and keeps upside risk from that short stock."
+    ],
+    "cliGuidance": "If the user says 'covered short put', ask whether they mean cash-secured put or covered put before building any order body.",
+    "sources": [
+      "https://www.theocc.com/company-information/documents-and-archives/options-disclosure-document"
+    ]
+  },
+  {
+    "id": "long-strangle",
+    "title": "Long strangle",
+    "category": "volatility",
+    "marketView": "Large move either direction beyond either strike plus total debit.",
+    "volatilityView": "Long volatility; benefits from implied-volatility expansion.",
+    "aggressiveness": "moderate",
+    "definedRisk": true,
+    "requiresMargin": false,
+    "requiresUnderlying": false,
+    "payoff": {
+      "maxProfit": "Large upside on call side and substantial downside on put side.",
+      "maxLoss": "Net debit paid.",
+      "breakevens": ["call_strike + net_debit", "put_strike - net_debit"]
+    },
+    "greekProfile": {
+      "delta": "Near neutral if centered, turns directional after movement.",
+      "gamma": "Positive.",
+      "theta": "Negative.",
+      "vega": "Positive.",
+      "rho": "Mixed."
+    },
+    "legs": [
+      {
+        "id": "long_put",
+        "action": "buy",
+        "optionType": "put",
+        "strikeRole": "otm_put_strike",
+        "positionEffect": "open",
+        "ratioQuantity": 1,
+        "optionPlaceholder": "long_put_option_id"
+      },
+      {
+        "id": "long_call",
+        "action": "buy",
+        "optionType": "call",
+        "strikeRole": "otm_call_strike",
+        "positionEffect": "open",
+        "ratioQuantity": 1,
+        "optionPlaceholder": "long_call_option_id"
+      }
+    ],
+    "lookupSteps": [
+      "GET https://api.robinhood.com/options/chains/?account_number={account_number}&underlying_symbol={symbol}",
+      "GET https://api.robinhood.com/options/instruments/?account_number={account_number}&chain_id={chain_id}&expiration_dates={expiration}&state=active&type=put",
+      "GET https://api.robinhood.com/options/instruments/?account_number={account_number}&chain_id={chain_id}&expiration_dates={expiration}&state=active&type=call",
+      "GET https://api.robinhood.com/marketdata/options/strategy/quotes/?ids={strategy_ids}&ratios={ratios}&types={types}"
+    ],
+    "orderTemplate": {
+      "account": "https://api.robinhood.com/accounts/{account_number}/",
+      "direction": "debit",
+      "legs": [
+        {
+          "side": "buy",
+          "option": "https://api.robinhood.com/options/instruments/{long_put_option_id}/",
+          "position_effect": "open",
+          "ratio_quantity": 1
+        },
+        {
+          "side": "buy",
+          "option": "https://api.robinhood.com/options/instruments/{long_call_option_id}/",
+          "position_effect": "open",
+          "ratio_quantity": 1
+        }
+      ],
+      "type": "limit",
+      "time_in_force": "{time_in_force}",
+      "trigger": "immediate",
+      "price": "{limit_price}",
+      "quantity": "{quantity}",
+      "ref_id": "{ref_id}"
+    },
+    "riskNotes": [
+      "Defined risk, but time decay can be heavy.",
+      "Requires the underlying to move enough to overcome both premiums."
+    ],
+    "cliGuidance": "Use when the user wants long-volatility exposure but not necessarily same-strike straddle exposure.",
+    "sources": [
+      "https://www.theocc.com/company-information/documents-and-archives/options-disclosure-document"
+    ]
+  },
+  {
+    "id": "short-strangle",
+    "title": "Short strangle",
+    "category": "volatility",
+    "marketView": "Range-bound underlying between two short strikes.",
+    "volatilityView": "Short volatility; benefits from time decay and lower implied volatility.",
+    "aggressiveness": "aggressive",
+    "definedRisk": false,
+    "requiresMargin": true,
+    "requiresUnderlying": false,
+    "payoff": {
+      "maxProfit": "Net credit received.",
+      "maxLoss": "Undefined on the call side and large on the put side.",
+      "breakevens": ["short_call_strike + net_credit", "short_put_strike - net_credit"]
+    },
+    "greekProfile": {
+      "delta": "Near neutral if centered, becomes directional when tested.",
+      "gamma": "Negative.",
+      "theta": "Positive.",
+      "vega": "Negative.",
+      "rho": "Mixed."
+    },
+    "legs": [
+      {
+        "id": "short_put",
+        "action": "sell",
+        "optionType": "put",
+        "strikeRole": "short_put_strike",
+        "positionEffect": "open",
+        "ratioQuantity": 1,
+        "optionPlaceholder": "short_put_option_id"
+      },
+      {
+        "id": "short_call",
+        "action": "sell",
+        "optionType": "call",
+        "strikeRole": "short_call_strike",
+        "positionEffect": "open",
+        "ratioQuantity": 1,
+        "optionPlaceholder": "short_call_option_id"
+      }
+    ],
+    "lookupSteps": [
+      "GET https://api.robinhood.com/options/chains/?account_number={account_number}&underlying_symbol={symbol}",
+      "GET https://api.robinhood.com/options/chains/{chain_id}/collateral/?account_number={account_number}",
+      "GET https://api.robinhood.com/options/instruments/?account_number={account_number}&chain_id={chain_id}&expiration_dates={expiration}&state=active&type=put",
+      "GET https://api.robinhood.com/options/instruments/?account_number={account_number}&chain_id={chain_id}&expiration_dates={expiration}&state=active&type=call",
+      "GET https://api.robinhood.com/marketdata/options/strategy/quotes/?ids={strategy_ids}&ratios={ratios}&types={types}"
+    ],
+    "orderTemplate": {
+      "account": "https://api.robinhood.com/accounts/{account_number}/",
+      "direction": "credit",
+      "legs": [
+        {
+          "side": "sell",
+          "option": "https://api.robinhood.com/options/instruments/{short_put_option_id}/",
+          "position_effect": "open",
+          "ratio_quantity": 1
+        },
+        {
+          "side": "sell",
+          "option": "https://api.robinhood.com/options/instruments/{short_call_option_id}/",
+          "position_effect": "open",
+          "ratio_quantity": 1
+        }
+      ],
+      "type": "limit",
+      "time_in_force": "{time_in_force}",
+      "trigger": "immediate",
+      "price": "{limit_price}",
+      "quantity": "{quantity}",
+      "ref_id": "{ref_id}"
+    },
+    "riskNotes": [
+      "Undefined-risk short-volatility strategy; do not infer from 'sell options' or 'strangle'.",
+      "Requires explicit user confirmation of naked short option exposure."
+    ],
+    "cliGuidance": "Prefer iron condor if the user wants a defined-risk alternative; keep short strangle exact-approval only.",
+    "sources": [
+      "https://www.finra.org/investors/investing/investment-products/options",
+      "https://www.theocc.com/company-information/documents-and-archives/options-disclosure-document"
+    ]
+  }
+]

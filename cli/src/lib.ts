@@ -59,6 +59,109 @@ export interface BrowserRoute extends BrokerageRoute {
   requestTypes: string[];
 }
 
+export type AccountContextBehavior = "propagates" | "mixed" | "ignored" | "not-applicable" | "stale-route";
+
+export interface AccountContextWorkflow {
+  id: string;
+  title: string;
+  surface: string;
+  webRoute: string;
+  behavior: AccountContextBehavior;
+  confidence: string;
+  risk: RouteRisk;
+  safeToAutomate: boolean;
+  observedOn: string;
+  observedBy: string;
+  apiRouteFamilies: string[];
+  cliGuidance: string;
+}
+
+export interface BuiltWorkflowUrl {
+  workflow: AccountContextWorkflow;
+  url: string;
+  missingParams: string[];
+  warnings: string[];
+}
+
+export interface OptionStrategyLegTemplate {
+  id: string;
+  action: "buy" | "sell";
+  optionType: "call" | "put" | "stock";
+  strikeRole: string;
+  positionEffect: "open" | "close";
+  ratioQuantity: number;
+  optionPlaceholder?: string;
+  notes?: string;
+}
+
+export interface OptionsStrategyWorkflow {
+  id: string;
+  title: string;
+  category: string;
+  marketView: string;
+  volatilityView: string;
+  aggressiveness: "conservative" | "moderate" | "aggressive";
+  definedRisk: boolean;
+  requiresMargin: boolean;
+  requiresUnderlying: boolean;
+  payoff: {
+    maxProfit: string;
+    maxLoss: string;
+    breakevens: string[];
+  };
+  greekProfile: {
+    delta: string;
+    gamma: string;
+    theta: string;
+    vega: string;
+    rho: string;
+  };
+  legs: OptionStrategyLegTemplate[];
+  lookupSteps: string[];
+  orderTemplate: unknown;
+  riskNotes: string[];
+  cliGuidance: string;
+  sources: string[];
+}
+
+export interface OptionsStrategyOrderPlan {
+  workflow: OptionsStrategyWorkflow;
+  lookupSteps: string[];
+  order: unknown;
+  reviewContract: OptionsQuantReviewContract;
+  missingParams: string[];
+  warnings: string[];
+  mode: "dry_run";
+  risk: "write-mutate";
+}
+
+export interface OptionsQuantReviewContract {
+  intent: "open" | "close" | "roll" | "analyze";
+  requiredFields: string[];
+  requiredChecks: string[];
+  greekMath: {
+    contractMultiplier: 100;
+    netDelta: string;
+    netGamma: string;
+    netTheta: string;
+    netVega: string;
+    netRho: string;
+    unitRules: string[];
+  };
+  scenarioRows: Array<{
+    id: string;
+    purpose: string;
+    formulaOrCheck: string;
+  }>;
+  variantResolution: Array<{
+    phrase: string;
+    conservativeOrModeratePath: string;
+    aggressivePath: string;
+    rule: string;
+  }>;
+  hardBlockers: string[];
+}
+
 export interface CryptoRoute {
   path: string;
   methods: string[];
@@ -219,6 +322,24 @@ export function loadBrowserRoutes(root = repoRootFromCli()): BrowserRoute[] {
   return readJson<BrowserRoute[]>(join(apiMapDir, latest));
 }
 
+function loadLatestApiMapJson<T>(prefix: string, root = repoRootFromCli()): T[] {
+  const apiMapDir = join(root, "api-map");
+  const latest = readdirSync(apiMapDir)
+    .filter((file) => file.startsWith(prefix) && /^.+-\d{4}-\d{2}-\d{2}\.json$/.test(file))
+    .sort()
+    .reverse()[0];
+  if (!latest) return [];
+  return readJson<T[]>(join(apiMapDir, latest));
+}
+
+export function loadAccountContextWorkflows(root = repoRootFromCli()): AccountContextWorkflow[] {
+  return loadLatestApiMapJson<AccountContextWorkflow>("account-context-browser-workflows-", root);
+}
+
+export function loadOptionsStrategyWorkflows(root = repoRootFromCli()): OptionsStrategyWorkflow[] {
+  return loadLatestApiMapJson<OptionsStrategyWorkflow>("options-strategy-workflows-", root);
+}
+
 export function loadCryptoSpec(root = repoRootFromCli()): any {
   return readJson(join(root, "api-map/openapi/robinhood-crypto.openapi.json"));
 }
@@ -260,6 +381,264 @@ export function filterBrokerageRoutes(
 }
 
 export const filterRobinhoodRoutes = filterBrokerageRoutes;
+
+export function filterAccountContextWorkflows(
+  workflows: AccountContextWorkflow[],
+  filters: { behavior?: AccountContextBehavior; surface?: string; query?: string }
+): AccountContextWorkflow[] {
+  const query = filters.query?.toLowerCase();
+  return workflows.filter((workflow) => {
+    if (filters.behavior && workflow.behavior !== filters.behavior) return false;
+    if (filters.surface && workflow.surface !== filters.surface) return false;
+    if (
+      query &&
+      ![
+        workflow.id,
+        workflow.title,
+        workflow.surface,
+        workflow.webRoute,
+        workflow.behavior,
+        workflow.cliGuidance,
+        ...workflow.apiRouteFamilies
+      ]
+        .join("\n")
+        .toLowerCase()
+        .includes(query)
+    ) {
+      return false;
+    }
+    return true;
+  });
+}
+
+export function filterOptionsStrategyWorkflows(
+  workflows: OptionsStrategyWorkflow[],
+  filters: { category?: string; aggressiveness?: string; definedRisk?: boolean; query?: string }
+): OptionsStrategyWorkflow[] {
+  const query = filters.query?.toLowerCase();
+  const ambiguousCoveredShortPut = Boolean(query?.includes("covered") && query.includes("short") && query.includes("put"));
+  return workflows.filter((workflow) => {
+    if (filters.category && workflow.category !== filters.category) return false;
+    if (filters.aggressiveness && workflow.aggressiveness !== filters.aggressiveness) return false;
+    if (filters.definedRisk !== undefined && workflow.definedRisk !== filters.definedRisk) return false;
+    if (ambiguousCoveredShortPut && ["cash-secured-short-put", "covered-put"].includes(workflow.id)) return true;
+    if (
+      query &&
+      ![
+        workflow.id,
+        workflow.title,
+        workflow.category,
+        workflow.marketView,
+        workflow.volatilityView,
+        workflow.cliGuidance,
+        ...workflow.riskNotes,
+        ...workflow.lookupSteps
+      ]
+        .join("\n")
+        .toLowerCase()
+        .includes(query)
+    ) {
+      return false;
+    }
+    return true;
+  });
+}
+
+function fillTemplateString(
+  template: string,
+  params: Record<string, string | undefined>,
+  missing: Set<string>,
+  options: { encode?: boolean } = { encode: true }
+): string {
+  return template.replace(/\{([^}]+)\}/g, (_match, name: string) => {
+    const value = params[name];
+    if (value === undefined || value === "") {
+      missing.add(name);
+      return `{${name}}`;
+    }
+    return options.encode === false ? value : encodeURIComponent(value);
+  });
+}
+
+function fillTemplateValue(value: unknown, params: Record<string, string | undefined>, missing: Set<string>): unknown {
+  if (typeof value === "string") return fillTemplateString(value, params, missing, { encode: false });
+  if (Array.isArray(value)) return value.map((item) => fillTemplateValue(item, params, missing));
+  if (value && typeof value === "object") {
+    return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, fillTemplateValue(item, params, missing)]));
+  }
+  return value;
+}
+
+export function buildAccountContextUrl(
+  workflow: AccountContextWorkflow,
+  params: Record<string, string | undefined>
+): BuiltWorkflowUrl {
+  const missing = new Set<string>();
+  const url = fillTemplateString(workflow.webRoute, params, missing);
+  const warnings = riskWarnings(workflow.risk);
+  if (workflow.behavior === "mixed") {
+    warnings.push("Mixed account-context behavior observed: URL may preserve account_number while some API calls use page/default context.");
+  } else if (workflow.behavior === "ignored") {
+    warnings.push("Observed page ignored the supplied account_number query; use explicit API account fields instead.");
+  } else if (workflow.behavior === "stale-route") {
+    warnings.push("Observed as a stale/404 web route; do not automate from this URL.");
+  }
+  if (!workflow.safeToAutomate) warnings.push("Not safe to automate blindly. Keep this as read-first research or an approval-gated planner.");
+  return {
+    workflow,
+    url,
+    missingParams: [...missing],
+    warnings
+  };
+}
+
+export function buildOptionsStrategyOrderPlan(
+  workflow: OptionsStrategyWorkflow,
+  params: Record<string, string | undefined> = {}
+): OptionsStrategyOrderPlan {
+  const missing = new Set<string>();
+  const order = fillTemplateValue(workflow.orderTemplate, params, missing);
+  const lookupSteps = workflow.lookupSteps.map((step) => fillTemplateString(step, params, missing));
+  const warnings = [
+    "Dry-run plan only. Options orders require explicit account, current option instrument URLs, limit price, quantity, and Robinhood live-write gates before sending.",
+    ...riskWarnings("write-mutate"),
+    ...workflow.riskNotes
+  ];
+  if (workflow.aggressiveness === "aggressive") {
+    warnings.push("Aggressive options posture: verify max loss, collateral/margin, assignment risk, liquidity, and expiration behavior before any live order.");
+  }
+  return {
+    workflow,
+    lookupSteps,
+    order,
+    reviewContract: buildOptionsQuantReviewContract(workflow),
+    missingParams: [...missing],
+    warnings,
+    mode: "dry_run",
+    risk: "write-mutate"
+  };
+}
+
+export function buildOptionsQuantReviewContract(workflow: OptionsStrategyWorkflow): OptionsQuantReviewContract {
+  const intent = workflow.category === "position-management" ? "close" : "open";
+  const requiredChecks = [
+    "account context matches the selected account_number",
+    "all option instrument ids resolve from the selected chain, expiration, type, and strike",
+    "all legs have explicit side, position_effect, ratio_quantity, and quantity",
+    "limit price is set; do not use market orders for strategy plans",
+    "individual leg quotes are current; package quote is current for spreads/straddles/condors",
+    "max profit, max loss, and breakevens are computed from the actual debit_or_credit",
+    "net Greeks are summed over signed legs with the 100-share multiplier and unit labels",
+    "liquidity is reviewed: bid/ask width, volume/open interest if available, and stale quote flags",
+    "expiration risks are reviewed: 0DTE/near-expiration, assignment/exercise, and dividend events",
+    "write gates are dry-run unless exact approval, --live-write, and ROBINHOOD_ALLOW_LIVE_WRITE=1 are present"
+  ];
+  if (workflow.requiresUnderlying) {
+    requiredChecks.push("coverage is verified in the same account before treating the strategy as covered");
+  }
+  if (workflow.requiresMargin || workflow.aggressiveness === "aggressive") {
+    requiredChecks.push("margin/collateral eligibility is explicitly verified; do not infer naked exposure");
+  }
+  if (!workflow.definedRisk) {
+    requiredChecks.push("undefined or stock-like loss shape is explicitly acknowledged by strategy id and warning");
+  }
+  return {
+    intent,
+    requiredFields: [
+      "account_number",
+      "symbol",
+      "chain_id",
+      "expiration",
+      "every leg option instrument id",
+      "every strike",
+      "side",
+      "position_effect",
+      "ratio_quantity",
+      "quantity",
+      "limit_price",
+      "time_in_force",
+      "ref_id"
+    ],
+    requiredChecks,
+    greekMath: {
+      contractMultiplier: 100,
+      netDelta: "sum(side * delta * ratio_quantity * contracts * 100)",
+      netGamma: "sum(side * gamma * ratio_quantity * contracts * 100)",
+      netTheta: "sum(side * theta * ratio_quantity * contracts * 100)",
+      netVega: "sum(side * vega * ratio_quantity * contracts * 100)",
+      netRho: "sum(side * rho * ratio_quantity * contracts * 100)",
+      unitRules: [
+        "state whether Robinhood returned theta per day or model theta was converted from per-year",
+        "state whether vega is broker-normalized per volatility point or model vega divided by 100",
+        "state whether rho is broker-normalized per rate point or model rho divided by 100",
+        "report local sensitivity separately from expiration payoff and max-loss math"
+      ]
+    },
+    scenarioRows: [
+      {
+        id: "spot-plus-minus-1pct",
+        purpose: "directional delta/gamma sanity check",
+        formulaOrCheck: "approx_pnl = net_delta*dS + 0.5*net_gamma*dS^2"
+      },
+      {
+        id: "iv-plus-minus-5vol",
+        purpose: "long-vol versus short-vol check",
+        formulaOrCheck: "approx_pnl contribution = net_vega*dIV"
+      },
+      {
+        id: "one-calendar-day",
+        purpose: "theta decay/accrual check",
+        formulaOrCheck: "approx_pnl contribution = net_theta*1"
+      },
+      {
+        id: "breakevens-at-expiration",
+        purpose: "payoff graph consistency",
+        formulaOrCheck: "expiration payoff equals zero at every listed breakeven"
+      },
+      {
+        id: "max-loss-boundary",
+        purpose: "defined-risk proof or undefined-risk flag",
+        formulaOrCheck: "computed max_loss matches strategy payoff; undefined risk remains blocked without exact confirmation"
+      }
+    ],
+    variantResolution: [
+      {
+        phrase: "sell a call",
+        conservativeOrModeratePath: "sell-to-close-long-option, covered-call, or call-credit-spread",
+        aggressivePath: "naked-short-call",
+        rule: "ask which structure; never infer naked short-call exposure"
+      },
+      {
+        phrase: "sell a put",
+        conservativeOrModeratePath: "cash-secured-short-put or put-credit-spread",
+        aggressivePath: "naked-short-put",
+        rule: "verify cash collateral before calling it cash-secured"
+      },
+      {
+        phrase: "covered short put",
+        conservativeOrModeratePath: "cash-secured-short-put in common retail wording",
+        aggressivePath: "covered-put, meaning short stock plus short put",
+        rule: "show both candidates and require the user to choose the actual structure"
+      },
+      {
+        phrase: "straddle or strangle",
+        conservativeOrModeratePath: "long debit structure",
+        aggressivePath: "short undefined-risk structure",
+        rule: "ask long or short before planning legs"
+      }
+    ],
+    hardBlockers: [
+      "missing account_number",
+      "missing option instrument id for any leg",
+      "unclear open vs close position_effect",
+      "aggressive/naked/undefined-risk strategy not explicitly requested by id",
+      "coverage or collateral claim not verified in the same account",
+      "strategy quote stale or missing for a multi-leg order",
+      "missing limit_price, quantity, time_in_force, or ref_id",
+      "any live write attempted without --live-write and ROBINHOOD_ALLOW_LIVE_WRITE=1"
+    ]
+  };
+}
 
 export function parseParamAssignments(values: string[] = []): Record<string, string> {
   const params: Record<string, string> = {};

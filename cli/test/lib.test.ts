@@ -1,13 +1,19 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildAccountContextUrl,
+  buildOptionsStrategyOrderPlan,
   classifyMoneyness,
   executeBrokerageRequest,
   executeCryptoRequest,
+  filterAccountContextWorkflows,
   filterBrokerageRoutes,
+  filterOptionsStrategyWorkflows,
   filterRobinhoodRoutes,
   listCryptoRoutes,
+  loadAccountContextWorkflows,
   loadBrowserRoutes,
   loadBrokerageRoutes,
+  loadOptionsStrategyWorkflows,
   loadRobinhoodRoutes,
   optionReturnPct,
   parseParamAssignments,
@@ -74,11 +80,87 @@ describe("Robinhood API map", () => {
 
   it("loads the latest sanitized CDP browser route slice", () => {
     const routes = loadBrowserRoutes();
-    expect(routes.length).toBeGreaterThanOrEqual(217);
+    expect(routes.length).toBeGreaterThanOrEqual(250);
     expect(routes.some((route) => route.seenOn.includes("stock-nvda"))).toBe(true);
     expect(routes.some((route) => route.seenOn.includes("account-transfers"))).toBe(true);
+    expect(routes.some((route) => route.seenOn.includes("options-chain-symbol-account-context"))).toBe(true);
     expect(routes.some((route) => route.host === "bonfire.robinhood.com")).toBe(true);
     expect(JSON.stringify(routes)).not.toMatch(/Cookie|Authorization|Bearer|localStorage|sessionStorage/i);
+  });
+
+  it("loads account-context workflow findings and builds sanitized web URLs", () => {
+    const workflows = loadAccountContextWorkflows();
+    expect(workflows.length).toBeGreaterThanOrEqual(8);
+    expect(filterAccountContextWorkflows(workflows, { behavior: "propagates" }).map((workflow) => workflow.id)).toContain(
+      "stock-detail-order-ticket"
+    );
+    const stockTicket = workflows.find((workflow) => workflow.id === "stock-detail-order-ticket");
+    expect(stockTicket).toBeTruthy();
+    const built = buildAccountContextUrl(stockTicket!, {
+      account_number: "ACCOUNT_TEST",
+      symbol: "XBI",
+      instrument_uuid: "00000000-0000-4000-8000-000000000000"
+    });
+    expect(built.url).toBe(
+      "https://robinhood.com/stocks/XBI(00000000-0000-4000-8000-000000000000)?account_number=ACCOUNT_TEST&source=lists_section_position"
+    );
+    expect(built.missingParams).toEqual([]);
+    const optionsChain = workflows.find((workflow) => workflow.id === "options-chain-symbol-builder");
+    expect(optionsChain).toBeTruthy();
+    const chainUrl = buildAccountContextUrl(optionsChain!, {
+      account_number: "ACCOUNT_TEST",
+      symbol: "XBI"
+    });
+    expect(chainUrl.url).toBe("https://robinhood.com/options/chains/XBI?account_number=ACCOUNT_TEST");
+    expect(chainUrl.warnings.some((warning) => warning.includes("Mixed account-context behavior"))).toBe(true);
+    expect(JSON.stringify(workflows)).not.toMatch(/(?:account_number|rhsAccountNumber)=[0-9]{6,}/i);
+  });
+
+  it("loads options strategy workflows and dry-run order templates", () => {
+    const workflows = loadOptionsStrategyWorkflows();
+    expect(workflows.length).toBeGreaterThanOrEqual(10);
+    expect(filterOptionsStrategyWorkflows(workflows, { definedRisk: true }).map((workflow) => workflow.id)).toContain("iron-condor");
+    expect(filterOptionsStrategyWorkflows(workflows, { aggressiveness: "aggressive" }).map((workflow) => workflow.id)).toContain(
+      "naked-short-call"
+    );
+    expect(filterOptionsStrategyWorkflows(workflows, { aggressiveness: "aggressive" }).map((workflow) => workflow.id)).toContain(
+      "naked-short-put"
+    );
+    expect(filterOptionsStrategyWorkflows(workflows, { query: "debit spread" }).map((workflow) => workflow.id)).toContain(
+      "call-debit-spread"
+    );
+    expect(filterOptionsStrategyWorkflows(workflows, { query: "strangle" }).map((workflow) => workflow.id)).toContain(
+      "short-strangle"
+    );
+    expect(filterOptionsStrategyWorkflows(workflows, { query: "covered short put" }).map((workflow) => workflow.id)).toEqual(
+      expect.arrayContaining(["cash-secured-short-put", "covered-put"])
+    );
+    const spread = workflows.find((workflow) => workflow.id === "call-credit-spread");
+    expect(spread).toBeTruthy();
+    const plan = buildOptionsStrategyOrderPlan(spread!, {
+      account_number: "ACCOUNT_TEST",
+      chain_id: "chain-id",
+      expiration: "2026-06-26",
+      symbol: "XBI",
+      strategy_legs: "short_call,long_call",
+      short_call_option_id: "short-call-id",
+      long_call_option_id: "long-call-id",
+      limit_price: "4.00",
+      quantity: "1",
+      time_in_force: "gfd",
+      ref_id: "00000000-0000-4000-8000-000000000001"
+    });
+    expect(plan.mode).toBe("dry_run");
+    expect(plan.risk).toBe("write-mutate");
+    expect(plan.missingParams).toEqual([]);
+    expect(JSON.stringify(plan.order)).toContain("https://api.robinhood.com/options/instruments/short-call-id/");
+    expect(plan.reviewContract.greekMath.netDelta).toContain("contracts * 100");
+    expect(plan.reviewContract.scenarioRows.map((row) => row.id)).toContain("spot-plus-minus-1pct");
+    expect(plan.reviewContract.variantResolution.find((row) => row.phrase === "covered short put")?.rule).toContain(
+      "require the user to choose"
+    );
+    expect(plan.reviewContract.hardBlockers).toContain("missing option instrument id for any leg");
+    expect(JSON.stringify(workflows)).not.toMatch(/(?:account_number|rhsAccountNumber)=[0-9]{6,}/i);
   });
 
   it("lists official Crypto routes without counting OpenAPI metadata keys as methods", () => {

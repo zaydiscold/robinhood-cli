@@ -7,6 +7,10 @@ Stdio MCP server for personal Robinhood API-map inspection and execution.
 - `robinhood_api_map_summary`
 - `robinhood_routes`
 - `robinhood_browser_routes`
+- `robinhood_account_context_workflows`
+- `robinhood_account_context_url`
+- `robinhood_options_strategy_workflows`
+- `robinhood_options_strategy_plan`
 - `robinhood_brokerage_routes`
 - `robinhood_brokerage_plan`
 - `robinhood_brokerage_execute`

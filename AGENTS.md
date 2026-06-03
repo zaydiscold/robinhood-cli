@@ -17,7 +17,7 @@ website uses — not the official, walled "agent sandbox" (which is equity-only)
 
 **The four moving parts:**
 
-1. **The route map** (`api-map/brokerage-routes.json`) — a catalog of ~277 real Robinhood
+1. **The route map** (`api-map/brokerage-routes.json`) — a catalog of 279 real Robinhood
    API endpoints, reverse-engineered from the authenticated web app. Each entry records the
    URL, the HTTP method(s), and a **risk level** (`read` … `destructive`). The CLI/MCP only
    ever calls endpoints that are in this map; it is the allow-list and the safety taxonomy
@@ -35,7 +35,7 @@ website uses — not the official, walled "agent sandbox" (which is equity-only)
    manual login. (Details in §1.)
 
 4. **Two front doors** — the **CLI** (`cli/dist/index.js`, for humans/scripts) and the
-   **MCP server** (`mcp/dist/server.js`, 10 tools for agents). Both are thin wrappers over
+   **MCP server** (`mcp/dist/server.js`, 14 tools for agents). Both are thin wrappers over
    the engine.
 
 **How a single call flows:** you give a query string → the engine substring-matches it
@@ -97,6 +97,22 @@ nickname/balance fields off each result. Pick whichever account the user means (
 one holding their options book) and pass its number to the per-account reads in §4.
 See §4 for the full enumeration recipe — the default endpoint hides most accounts.
 
+Browser account-context routing is separately mapped:
+
+```bash
+node cli/dist/index.js api-map account-context
+node cli/dist/index.js api-map account-url stock-detail-order-ticket \
+  --account <ACCOUNT_NUMBER> --symbol XBI --instrument-id <INSTRUMENT_UUID>
+```
+
+The 2026-06-02 browser pass found that `?account_number=` propagates strongly on
+stock-detail/order-ticket and investing settings routes, is mixed on options-chain,
+stock lending, account hub, history/documents/tax, and recurring, and is ignored by
+Legend/transfers in the sanitized capture. Treat this as navigation and endpoint
+discovery evidence; for automation, pass account numbers directly to API routes. Full
+notes: `docs/account-context-routing-2026-06-02.md` and
+`docs/security-research-account-number-context-routing-2026-06-03.md`.
+
 ---
 
 ## 3. ⚠️ Build footgun — rebuild after ANY map edit
@@ -108,7 +124,7 @@ runtime until you rebuild:
 ```bash
 pnpm --filter @zaydiscold/robinhood-cli build       # CLI
 pnpm --filter @zaydiscold/robinhood-cli-mcp build   # MCP
-# verify (currently 277 routes):
+# verify (currently 279 routes):
 node cli/dist/index.js brokerage routes --json | python3 -c "import sys,json;print(json.load(sys.stdin)['count'])"
 ```
 
@@ -266,6 +282,84 @@ Options order body shape: `account`, `direction` (`debit`|`credit`), `legs[]`
 
 ---
 
+## 7.1 Options strategy planning and Greeks
+
+Options support is not just reporting. The repo now has a machine-readable strategy
+catalog at `api-map/options-strategy-workflows-2026-06-02.json`, exposed through:
+
+```bash
+node cli/dist/index.js api-map options-strategies
+node cli/dist/index.js api-map options-strategy-plan iron-condor --json
+node cli/dist/index.js api-map options-strategy-plan naked-short-put --json
+node cli/dist/index.js api-map options-strategy-plan short-strangle --json
+node cli/dist/index.js api-map options-strategy-plan call-credit-spread \
+  --param account_number=<ACCOUNT_NUMBER> \
+  --param symbol=XBI \
+  --param chain_id=<CHAIN_ID> \
+  --param expiration=<YYYY-MM-DD> \
+  --param short_call_option_id=<SHORT_CALL_OPTION_ID> \
+  --param long_call_option_id=<LONG_CALL_OPTION_ID> \
+  --param strategy_legs=<ENCODED_STRATEGY_LEGS> \
+  --param limit_price=<CREDIT_OR_DEBIT> \
+  --param quantity=1 \
+  --param time_in_force=gfd \
+  --param ref_id=$(python3 -c "import uuid;print(uuid.uuid4())") \
+  --json
+```
+
+The planner emits lookup steps and an `options/orders/` body template only. It never
+sends; live writes still need the normal double gate and exact user approval.
+
+Agent decision rule: classify the user's language before building a plan. "Sell a call"
+can mean:
+
+- `sell-to-close-long-option`: closing an existing long call.
+- `covered-call`: sell a call against 100 owned shares in the same account.
+- `call-credit-spread`: defined-risk short call exposure with a long call wing.
+- `naked-short-call`: undefined-risk margin short call.
+- `naked-short-put`: margin/collateral-sensitive short put; not the same as a cash-secured put.
+- `covered-put`: short stock plus short put; not the same as a cash-secured put.
+- `call-debit-spread` / `put-debit-spread`: defined-risk directional debit spreads.
+- `long-strangle` / `short-strangle`: volatility structures; short strangle is undefined-risk.
+
+Do not infer naked exposure. Naked short calls, naked short puts, short straddles,
+short strangles, and any other undefined-risk posture require the user to explicitly
+request that exact strategy, then the agent must dry-run the order body and echo
+account, symbol, expiration, strikes, side, quantity, limit price, max loss shape,
+and gate state before any live send.
+
+Greeks are netted over signed legs:
+
+```text
+net_delta = sum(side * delta * ratio_quantity * contracts * 100)
+net_gamma = sum(side * gamma * ratio_quantity * contracts * 100)
+net_theta = sum(side * theta * ratio_quantity * contracts * 100)
+net_vega  = sum(side * vega  * ratio_quantity * contracts * 100)
+```
+
+Use them as current local sensitivities. Long debit options are usually long gamma/vega
+and negative theta. Short premium structures are usually short gamma/vega and positive
+theta. Defined-risk spreads cap max loss with a long wing; naked short options do not.
+
+Full research notes:
+
+- `docs/options-greeks-strategy-research-2026-06-02.md`
+- `docs/options-quantitative-playbook-2026-06-03.md`
+
+`options-strategy-plan` emits `reviewContract`. Treat that object as a hard
+pre-execution checklist: required fields, required checks, signed-leg Greek
+math, scenario rows, variant-resolution rules, and hard blockers. Missing
+instrument ids, unclear `position_effect`, unverified coverage/collateral,
+stale package quotes, or unconfirmed undefined-risk exposure keep the plan in
+dry-run or blocked mode.
+
+Options chain URL rule: `https://robinhood.com/options/chains/<SYMBOL>` does not
+encode the selected expiration, strike, side, or Builder legs. Resolve those from
+`options/chains`, `options/instruments`, `marketdata/options`, and
+`marketdata/options/strategy/quotes` before building an `options/orders/` dry-run.
+
+---
+
 ## 8. Worked example — managing watchlists (create / rename / delete)
 
 Watchlists live under `discovery/lists/`. Every read AND the list endpoints need
@@ -418,7 +512,8 @@ settings/permissions, never print the token value.
 claude mcp add robinhood-cli -s user -- node /absolute/path/to/robinhood-cli/mcp/dist/server.js
 ```
 
-Tools surface as `mcp__robinhood-cli__*` (10 tools: route inspection, brokerage
-plan/execute, crypto routes/sign/plan/execute). Same engine → same auth, gate, and
-method-aware routing as the CLI. The MCP mirrors the CLI gate: `liveWrite: true` plus
+Tools surface as `mcp__robinhood-cli__*` (14 tools: route inspection, browser/account
+context, options strategy workflows/plans, brokerage plan/execute, and crypto
+routes/sign/plan/execute). Same engine → same auth, gate, and method-aware routing
+as the CLI. The MCP mirrors the CLI gate: `liveWrite: true` plus
 `ROBINHOOD_ALLOW_LIVE_WRITE=1` to send a write; otherwise forced dry-run.

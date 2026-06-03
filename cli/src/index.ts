@@ -9,14 +9,20 @@
 
 import { Command } from "commander";
 import {
+  buildAccountContextUrl,
+  buildOptionsStrategyOrderPlan,
   classifyMoneyness,
   executeBrokerageRequest,
   executeCryptoRequest,
+  filterAccountContextWorkflows,
   filterBrokerageRoutes,
+  filterOptionsStrategyWorkflows,
   filterRobinhoodRoutes,
   listCryptoRoutes,
+  loadAccountContextWorkflows,
   loadBrowserRoutes,
   loadBrokerageRoutes,
+  loadOptionsStrategyWorkflows,
   loadRobinhoodRoutes,
   optionReturnPct,
   parseParamAssignments,
@@ -140,6 +146,145 @@ apiMap
       })),
       ["risk", "host", "categories", "seenOn", "url"]
     );
+  });
+
+apiMap
+  .command("account-context")
+  .description("List browser-observed account_number routing behavior across Robinhood surfaces")
+  .option("--behavior <behavior>", "propagates, mixed, ignored, not-applicable, or stale-route")
+  .option("--surface <surface>", "filter by surface, e.g. stocks, legend, transfers")
+  .option("--query <text>", "substring filter")
+  .option("--json", "emit JSON")
+  .action((options: { behavior?: any; surface?: string; query?: string; json?: boolean }) => {
+    const workflows = filterAccountContextWorkflows(loadAccountContextWorkflows(), options);
+    if (options.json) {
+      printJson({ count: workflows.length, workflows });
+      return;
+    }
+    printTable(
+      workflows.map((workflow) => ({
+        behavior: workflow.behavior,
+        surface: workflow.surface,
+        risk: workflow.risk,
+        safe: workflow.safeToAutomate ? "yes" : "no",
+        id: workflow.id,
+        route: workflow.webRoute
+      })),
+      ["behavior", "surface", "risk", "safe", "id", "route"]
+    );
+  });
+
+apiMap
+  .command("account-url")
+  .description("Build a Robinhood web URL from an account-context workflow template")
+  .argument("<id>", "workflow id, e.g. stock-detail-order-ticket")
+  .option("--account <account_number>", "sets account_number")
+  .option("--symbol <symbol>", "sets symbol")
+  .option("--instrument-id <instrument_uuid>", "sets instrument_uuid")
+  .option("--layout-id <layout_uuid>", "sets layout_uuid")
+  .option("--param <name=value>", "replace any other placeholder; repeatable", (value: string, previous: string[] = []) => [
+    ...previous,
+    value
+  ])
+  .option("--json", "emit JSON")
+  .action(
+    (
+      id: string,
+      options: {
+        account?: string;
+        symbol?: string;
+        instrumentId?: string;
+        layoutId?: string;
+        param?: string[];
+        json?: boolean;
+      }
+    ) => {
+      const workflow = loadAccountContextWorkflows().find((candidate) => candidate.id === id);
+      if (!workflow) throw new Error(`No account-context workflow matched id: ${id}`);
+      const params = {
+        ...parseParamAssignments(options.param),
+        account_number: options.account,
+        symbol: options.symbol,
+        instrument_uuid: options.instrumentId,
+        layout_uuid: options.layoutId
+      };
+      const built = buildAccountContextUrl(workflow, params);
+      if (options.json) {
+        printJson(built);
+        return;
+      }
+      process.stdout.write(`${built.url}\n`);
+      for (const warning of built.warnings) process.stderr.write(`warning: ${warning}\n`);
+      if (built.missingParams.length > 0) process.stderr.write(`missing params: ${built.missingParams.join(", ")}\n`);
+    }
+  );
+
+apiMap
+  .command("options-strategies")
+  .description("List options strategy workflow templates with payoff and Greek posture")
+  .option("--category <category>", "filter by category")
+  .option("--aggressiveness <level>", "conservative, moderate, or aggressive")
+  .option("--defined-risk", "only defined-risk strategies")
+  .option("--undefined-risk", "only undefined-risk strategies")
+  .option("--query <text>", "substring filter")
+  .option("--json", "emit JSON")
+  .action(
+    (options: {
+      category?: string;
+      aggressiveness?: string;
+      definedRisk?: boolean;
+      undefinedRisk?: boolean;
+      query?: string;
+      json?: boolean;
+    }) => {
+      const definedRisk = options.definedRisk ? true : options.undefinedRisk ? false : undefined;
+      const workflows = filterOptionsStrategyWorkflows(loadOptionsStrategyWorkflows(), {
+        category: options.category,
+        aggressiveness: options.aggressiveness,
+        definedRisk,
+        query: options.query
+      });
+      if (options.json) {
+        printJson({ count: workflows.length, workflows });
+        return;
+      }
+      printTable(
+        workflows.map((workflow) => ({
+          risk: workflow.definedRisk ? "defined" : "undefined",
+          aggression: workflow.aggressiveness,
+          category: workflow.category,
+          margin: workflow.requiresMargin ? "yes" : "no",
+          id: workflow.id,
+          title: workflow.title
+        })),
+        ["risk", "aggression", "category", "margin", "id", "title"]
+      );
+    }
+  );
+
+apiMap
+  .command("options-strategy-plan")
+  .description("Build a dry-run options order body template for a strategy workflow")
+  .argument("<id>", "strategy id, e.g. iron-condor")
+  .option("--param <name=value>", "fill a strategy placeholder; repeatable", (value: string, previous: string[] = []) => [
+    ...previous,
+    value
+  ])
+  .option("--json", "emit JSON")
+  .action((id: string, options: { param?: string[]; json?: boolean }) => {
+    const workflow = loadOptionsStrategyWorkflows().find((candidate) => candidate.id === id);
+    if (!workflow) throw new Error(`No options strategy workflow matched id: ${id}`);
+    const plan = buildOptionsStrategyOrderPlan(workflow, parseParamAssignments(options.param));
+    if (options.json) {
+      printJson(plan);
+      return;
+    }
+    process.stdout.write(`${workflow.title} (${workflow.id})\n`);
+    process.stdout.write(`mode: ${plan.mode}\nrisk: ${plan.risk}\n\nlookup steps:\n`);
+    for (const step of plan.lookupSteps) process.stdout.write(`- ${step}\n`);
+    process.stdout.write(`\norder body:\n${JSON.stringify(plan.order, null, 2)}\n`);
+    for (const warning of plan.warnings) process.stderr.write(`warning: ${warning}\n`);
+    if (plan.missingParams.length > 0) process.stderr.write(`missing params: ${plan.missingParams.join(", ")}\n`);
   });
 
 program.addCommand(apiMap);

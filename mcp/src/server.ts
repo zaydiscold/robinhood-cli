@@ -3,13 +3,19 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 import {
+  buildAccountContextUrl,
+  buildOptionsStrategyOrderPlan,
   executeBrokerageRequest,
   executeCryptoRequest,
+  filterAccountContextWorkflows,
   filterBrokerageRoutes,
+  filterOptionsStrategyWorkflows,
   filterRobinhoodRoutes,
   listCryptoRoutes,
+  loadAccountContextWorkflows,
   loadBrowserRoutes,
   loadBrokerageRoutes,
+  loadOptionsStrategyWorkflows,
   loadRobinhoodRoutes,
   parseParamAssignments,
   planBrokerageRequest,
@@ -125,6 +131,86 @@ server.registerTool(
       .filter((route) => (!host || route.host === host) && (!risk || route.risk === risk))
       .slice(0, limit);
     return jsonResponse({ count: routes.length, routes });
+  }
+);
+
+server.registerTool(
+  "robinhood_account_context_workflows",
+  {
+    title: "Robinhood Account Context Workflows",
+    description: "List browser-observed account_number routing behavior across Robinhood web surfaces. This does not make live calls.",
+    annotations: toolAnnotations(true, "read"),
+    inputSchema: z.object({
+      behavior: z.enum(["propagates", "mixed", "ignored", "not-applicable", "stale-route"]).optional(),
+      surface: z.string().optional(),
+      query: z.string().optional(),
+      limit: z.number().int().min(1).max(100).default(50)
+    })
+  },
+  async ({ behavior, surface, query, limit }) => {
+    const workflows = filterAccountContextWorkflows(loadAccountContextWorkflows(), { behavior, surface, query }).slice(0, limit);
+    return jsonResponse({ count: workflows.length, workflows });
+  }
+);
+
+server.registerTool(
+  "robinhood_account_context_url",
+  {
+    title: "Robinhood Account Context URL",
+    description: "Build a Robinhood web URL from an account-context workflow template. This only returns a planned URL and warnings.",
+    annotations: toolAnnotations(true, "read"),
+    inputSchema: z.object({
+      id: z.string(),
+      params: z.array(z.string()).default([])
+    })
+  },
+  async ({ id, params }) => {
+    const workflow = loadAccountContextWorkflows().find((candidate) => candidate.id === id);
+    if (!workflow) throw new Error(`No account-context workflow matched id: ${id}`);
+    return jsonResponse(buildAccountContextUrl(workflow, parseParamAssignments(params)));
+  }
+);
+
+server.registerTool(
+  "robinhood_options_strategy_workflows",
+  {
+    title: "Robinhood Options Strategy Workflows",
+    description: "List options strategy templates with payoff, Greek posture, risk class, and Robinhood lookup guidance.",
+    annotations: toolAnnotations(true, "read"),
+    inputSchema: z.object({
+      category: z.string().optional(),
+      aggressiveness: z.enum(["conservative", "moderate", "aggressive"]).optional(),
+      definedRisk: z.boolean().optional(),
+      query: z.string().optional(),
+      limit: z.number().int().min(1).max(100).default(50)
+    })
+  },
+  async ({ category, aggressiveness, definedRisk, query, limit }) => {
+    const workflows = filterOptionsStrategyWorkflows(loadOptionsStrategyWorkflows(), {
+      category,
+      aggressiveness,
+      definedRisk,
+      query
+    }).slice(0, limit);
+    return jsonResponse({ count: workflows.length, workflows });
+  }
+);
+
+server.registerTool(
+  "robinhood_options_strategy_plan",
+  {
+    title: "Robinhood Options Strategy Plan",
+    description: "Build a dry-run Robinhood options order body template for a named options strategy. This does not execute an order.",
+    annotations: toolAnnotations(true, "read"),
+    inputSchema: z.object({
+      id: z.string(),
+      params: z.array(z.string()).default([])
+    })
+  },
+  async ({ id, params }) => {
+    const workflow = loadOptionsStrategyWorkflows().find((candidate) => candidate.id === id);
+    if (!workflow) throw new Error(`No options strategy workflow matched id: ${id}`);
+    return jsonResponse(buildOptionsStrategyOrderPlan(workflow, parseParamAssignments(params)));
   }
 );
 
