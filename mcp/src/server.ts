@@ -4,6 +4,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { z } from "zod";
 import {
   buildAccountContextUrl,
+  buildOptionsContractDeepLinkPlan,
   buildOptionsStrategyOrderPlan,
   executeBrokerageRequest,
   executeCryptoRequest,
@@ -212,6 +213,63 @@ server.registerTool(
     if (!workflow) throw new Error(`No options strategy workflow matched id: ${id}`);
     return jsonResponse(buildOptionsStrategyOrderPlan(workflow, parseParamAssignments(params)));
   }
+);
+
+server.registerTool(
+  "robinhood_options_contract_deeplink",
+  {
+    title: "Robinhood Options Contract Deeplink Plan",
+    description:
+      "Build web/mobile deeplink candidates plus deterministic API lookup steps for one exact options contract. This does not execute an order.",
+    annotations: toolAnnotations(true, "read"),
+    inputSchema: z.object({
+      accountNumber: z.string(),
+      symbol: z.string(),
+      expiration: z.string(),
+      optionType: z.enum(["call", "put"]),
+      side: z.enum(["buy", "sell"]),
+      strike: z.string(),
+      positionEffect: z.enum(["open", "close"]).default("open"),
+      chainId: z.string().optional(),
+      equityInstrumentId: z.string().optional(),
+      optionInstrumentId: z.string().optional(),
+      optionPositionId: z.string().optional(),
+      aggregatePositionId: z.string().optional(),
+      source: z.string().default("robinhood-cli-deeplink")
+    })
+  },
+  async ({
+    accountNumber,
+    symbol,
+    expiration,
+    optionType,
+    side,
+    strike,
+    positionEffect,
+    chainId,
+    equityInstrumentId,
+    optionInstrumentId,
+    optionPositionId,
+    aggregatePositionId,
+    source
+  }) =>
+    jsonResponse(
+      buildOptionsContractDeepLinkPlan({
+        accountNumber,
+        symbol,
+        expiration,
+        optionType,
+        side,
+        strike,
+        positionEffect,
+        chainId,
+        equityInstrumentId,
+        optionInstrumentId,
+        optionPositionId,
+        aggregatePositionId,
+        source
+      })
+    )
 );
 
 server.registerTool(

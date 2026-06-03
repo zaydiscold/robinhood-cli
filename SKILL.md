@@ -137,12 +137,15 @@ Do not overclaim first-class support. If a capability is route-map-only, say so 
 | Build web workflow URL | `robinhood-cli api-map account-url <id> --account <n> ...` | Navigation/research only; prefer direct API routes for automation |
 | Options strategy catalog | `robinhood-cli api-map options-strategies` | Lists single legs, covered calls, cash-secured/naked puts, naked calls, debit/credit spreads, straddles, strangles, butterflies, iron condors |
 | Strategy dry-run body | `robinhood-cli api-map options-strategy-plan <id> --param key=value` | Emits lookup steps + `options/orders/` body template; never sends |
+| Exact contract deeplink plan | `robinhood-cli api-map options-contract-deeplink --account <n> --symbol <s> --expiration <d> --type call|put --side buy|sell --strike <k> --json` | Emits observed web shell, candidate URL/app deeplinks, API resolution steps, and dry-run single-leg handoff |
 
 Primary options references:
 
 - `docs/options-greeks-strategy-research-2026-06-02.md`
 - `docs/options-quantitative-playbook-2026-06-03.md`
+- `docs/options-contract-deeplink-research-2026-06-03.md`
 - `api-map/options-strategy-workflows-2026-06-02.json`
+- `api-map/options-contract-deeplink-workflows-2026-06-03.json`
 
 ### Options Greeks and Strategy Math
 
@@ -347,12 +350,13 @@ automatically.
 Use this exact planning sequence:
 
 1. `robinhood-cli api-map account-context --json` to understand browser account routing. Prefer explicit API `account_number` fields over URL state.
-2. `robinhood-cli options expirations <SYMBOL> --json` and `robinhood-cli options chain <SYMBOL> --expiration <DATE> --type call|put --json` to inspect available contracts.
-3. Resolve all leg instrument ids through `options/instruments/`, then quote individual legs with `marketdata/options/`.
-4. For spreads/straddles/condors, quote the package with `marketdata/options/strategy/quotes/` when available.
-5. `robinhood-cli api-map options-strategies --json` to choose the strategy id.
-6. `robinhood-cli api-map options-strategy-plan <id> --param key=value --json` to emit lookup steps and an `options/orders/` body template.
-7. Only after the dry-run body is exact should any live route be considered, and only with `--live-write` plus `ROBINHOOD_ALLOW_LIVE_WRITE=1`.
+2. For an exact contract, run `robinhood-cli api-map options-contract-deeplink --account <N> --symbol <SYMBOL> --expiration <DATE> --type call|put --side buy|sell --strike <K> --json`.
+3. `robinhood-cli options expirations <SYMBOL> --json` and `robinhood-cli options chain <SYMBOL> --expiration <DATE> --type call|put --json` to inspect available contracts.
+4. Resolve all leg instrument ids through `options/instruments/`, then quote individual legs with `marketdata/options/`.
+5. For spreads/straddles/condors, quote the package with `marketdata/options/strategy/quotes/` when available.
+6. `robinhood-cli api-map options-strategies --json` to choose the strategy id.
+7. `robinhood-cli api-map options-strategy-plan <id> --param key=value --json` to emit lookup steps and an `options/orders/` body template.
+8. Only after the dry-run body is exact should any live route be considered, and only with `--live-write` plus `ROBINHOOD_ALLOW_LIVE_WRITE=1`.
 
 Required fields before a dry-run is acceptable: account, symbol, expiration,
 every strike, every option instrument id, buy/sell side, `position_effect`,
@@ -381,13 +385,49 @@ For a spread, never trust a label alone. Reconstruct every leg from option
 instrument id, strike, expiration, side, ratio, and `position_effect`, then
 quote the package and calculate max profit/loss before emitting the dry-run.
 
+### Exact Contract Deeplink Rules
+
+Use `api-map options-contract-deeplink` when the user wants a specific contract
+opened or planned:
+
+```bash
+robinhood-cli api-map options-contract-deeplink \
+  --account <ACCOUNT_NUMBER> \
+  --symbol XBI \
+  --expiration 2026-06-26 \
+  --type call \
+  --side buy \
+  --strike 127 \
+  --json
+```
+
+Interpret output this way:
+
+- `options-chain-account-shell` is the observed web shell for account context.
+- `options-chain-contract-query-candidate` and fragment variants are probes,
+  not proof that Robinhood stores contract state in the URL.
+- `robinhood://option_position?id=<id>` and
+  `robinhood://aggregate_option_position?id=<id>&account_number=<n>` are held
+  position detail links from Android decompile evidence; do not use unopened
+  contract ids in those slots.
+- For unopened contracts, exactness comes from API resolution:
+  `options/chains/` -> `options/instruments/` filtered by expiration/type/strike
+  -> `marketdata/options/` -> optional `strategy/quotes/`.
+
+Decompiled Android evidence lives in
+`docs/options-contract-deeplink-research-2026-06-03.md`. The key finding is that
+internal option-chain navigation carries `targetStrikePrice`,
+`initialAccountNumber`, `initialFilter`, `targetLegs`, and chain launch modes,
+while order navigation carries `initialAccountNumber`, `optionOrderBundle`,
+replacement fields, order type/time-in-force, source, and `strategyCode`.
+
 ### Route Matching Gotchas
 
 1. **Matching is substring-based.** `portfolios/<ACCOUNT_NUMBER>/` will NOT match — the route is `portfolios/{num}/` with a placeholder. Use brace syntax + `--param`.
 2. **Method-aware routing.** `GET /orders/` and `POST /orders/` share a URL. To hit the POST route you MUST pass `--method POST`, otherwise you get the GET (read) route.
 3. **`accounts/` under-reports.** Use `bonfire.robinhood.com/transfer/accounts/` for the full account list.
 4. **Build after map edits.** The runtime reads `cli/dist/api-map/`, not the source. Editing `api-map/brokerage-routes.json` without rebuilding is a silent no-op.
-5. **`url_template` vs `url`.** Some routes (watchlists, indices 263-271) use `url_template` instead of `url`. The engine only matches on `url`. Fix: copy `url_template` → `url` in both source and dist, then rebuild. (Fixed in commit `fb445fd`, not yet pushed.)
+5. **`url_template` vs `url`.** Some routes (watchlists, indices 263-271) used `url_template` instead of `url`. The engine only matches on `url`; keep source and dist route maps rebuilt after any repair.
 
 Full details: `AGENTS.md` §3-§5.
 
@@ -398,7 +438,9 @@ research belong in:
 
 - `docs/options-quantitative-playbook-2026-06-03.md`
 - `docs/options-greeks-strategy-research-2026-06-02.md`
+- `docs/options-contract-deeplink-research-2026-06-03.md`
 - `api-map/options-strategy-workflows-2026-06-02.json`
+- `api-map/options-contract-deeplink-workflows-2026-06-03.json`
 - `AGENTS.md`
 
 When updating the skill, follow progressive disclosure:
@@ -414,7 +456,7 @@ When updating the skill, follow progressive disclosure:
 
 ## MCP Server
 
-14 tools surfaced via Hermes MCP. Same engine → same auth, gate, and method-aware routing as the CLI.
+15 tools surfaced via Hermes MCP. Same engine -> same auth, gate, and method-aware routing as the CLI.
 
 ### Registration
 
@@ -442,6 +484,7 @@ claude mcp add robinhood-cli -s user -- \
 | `robinhood_account_context_url` | Build a workflow URL from safe placeholders |
 | `robinhood_options_strategy_workflows` | Strategy catalog with payoff and Greek posture |
 | `robinhood_options_strategy_plan` | Dry-run strategy lookup steps + order body template |
+| `robinhood_options_contract_deeplink` | Exact contract web/mobile deeplink candidates + API resolution plan |
 | `robinhood_brokerage_plan` | Create a dry-run plan (no execution) |
 | `robinhood_brokerage_execute` | Execute a brokerage request |
 | `robinhood_crypto_routes` | List official Crypto API routes |

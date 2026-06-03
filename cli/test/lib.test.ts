@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildAccountContextUrl,
+  buildOptionsContractDeepLinkPlan,
   buildOptionsStrategyOrderPlan,
   classifyMoneyness,
   executeBrokerageRequest,
@@ -161,6 +162,43 @@ describe("Robinhood API map", () => {
     );
     expect(plan.reviewContract.hardBlockers).toContain("missing option instrument id for any leg");
     expect(JSON.stringify(workflows)).not.toMatch(/(?:account_number|rhsAccountNumber)=[0-9]{6,}/i);
+  });
+
+  it("builds exact-contract deeplink/API plans without treating candidate URL params as proven", () => {
+    const plan = buildOptionsContractDeepLinkPlan({
+      accountNumber: "ACCOUNT_TEST",
+      symbol: "xbi",
+      expiration: "2026-06-26",
+      optionType: "call",
+      side: "buy",
+      strike: "127",
+      chainId: "CHAIN_TEST",
+      optionInstrumentId: "OPTION_TEST"
+    });
+    expect(plan.mode).toBe("dry_run");
+    expect(plan.risk).toBe("write-mutate");
+    expect(plan.selector.symbol).toBe("XBI");
+    expect(plan.selector.positionEffect).toBe("open");
+    expect(plan.webDeepLinks.find((link) => link.id === "options-chain-account-shell")?.url).toBe(
+      "https://robinhood.com/options/chains/XBI?account_number=ACCOUNT_TEST"
+    );
+    const candidate = plan.webDeepLinks.find((link) => link.id === "options-chain-contract-query-candidate");
+    expect(candidate?.confidence).toBe("candidate");
+    expect(candidate?.url).toContain("expiration_dates=2026-06-26");
+    expect(candidate?.url).toContain("strike_price=127");
+    expect(candidate?.url).toContain("side=buy");
+    expect(candidate?.url).toContain("type=call");
+    expect(plan.queryParamCandidates.expiration).toEqual(["expiration", "expiration_date", "expiration_dates"]);
+    expect(plan.apiResolutionSteps.map((step) => step.id)).toContain("resolve-contracts-for-expiration-type");
+    expect(plan.apiResolutionSteps.find((step) => step.id === "resolve-contracts-for-expiration-type")?.url).toBe(
+      "https://api.robinhood.com/options/instruments/?account_number=ACCOUNT_TEST&chain_id=CHAIN_TEST&expiration_dates=2026-06-26&state=active&type=call"
+    );
+    expect(plan.apiResolutionSteps.find((step) => step.id === "quote-single-contract")?.url).toBe(
+      "https://api.robinhood.com/marketdata/options/?ids=OPTION_TEST&include_all_sessions=true"
+    );
+    expect(JSON.stringify(plan.orderHandoff.orderTemplate)).toContain("https://api.robinhood.com/options/instruments/OPTION_TEST/");
+    expect(plan.warnings.join("\n")).toContain("candidate probe keys");
+    expect(JSON.stringify(plan)).not.toMatch(/(?:account_number|rhsAccountNumber)=[0-9]{6,}/i);
   });
 
   it("lists official Crypto routes without counting OpenAPI metadata keys as methods", () => {

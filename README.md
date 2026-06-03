@@ -214,6 +214,35 @@ Use this for navigation and endpoint discovery. For automation, prefer direct AP
 
 Security-research details live in [`docs/security-research-account-number-context-routing-2026-06-03.md`](./docs/security-research-account-number-context-routing-2026-06-03.md). It records the account-number dropdown/routing pattern, full-scope retest matrix, and the boundary between account-context evidence and any real IDOR claim.
 
+### 6.3 Exact options contract deeplinks
+
+Use this when you need to open or plan one specific contract by account, symbol,
+expiration, strike, call/put, and buy/sell side:
+
+```bash
+robinhood-cli api-map options-contract-deeplink \
+  --account <ACCOUNT_NUMBER> \
+  --symbol XBI \
+  --expiration 2026-06-26 \
+  --type call \
+  --side buy \
+  --strike 127 \
+  --json
+```
+
+The planner emits observed web account-context URLs, candidate contract query
+params, candidate `robinhood://` app links, deterministic API lookup steps, and
+a dry-run single-leg `options/orders/` handoff template. Treat the API lookup as
+the source of truth: resolve `chain_id`, filter `options/instruments/` by
+expiration/type/strike, quote the resulting `option_instrument_id`, then build
+the order body. Expiration, strike, side, and type URL params are probe
+candidates until validated in a logged-in browser/device pass.
+
+Research details live in
+[`docs/options-contract-deeplink-research-2026-06-03.md`](./docs/options-contract-deeplink-research-2026-06-03.md)
+and the machine-readable workflow lives in
+[`api-map/options-contract-deeplink-workflows-2026-06-03.json`](./api-map/options-contract-deeplink-workflows-2026-06-03.json).
+
 ### 7. More read commands — quote, positions, watchlists
 
 The same one-line ergonomics for everyday lookups. All read-only; all print per-share prices and percentages, never a summed account total (so output stays safe to screenshot):

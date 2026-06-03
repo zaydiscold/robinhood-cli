@@ -10,6 +10,7 @@
 import { Command } from "commander";
 import {
   buildAccountContextUrl,
+  buildOptionsContractDeepLinkPlan,
   buildOptionsStrategyOrderPlan,
   classifyMoneyness,
   executeBrokerageRequest,
@@ -286,6 +287,71 @@ apiMap
     for (const warning of plan.warnings) process.stderr.write(`warning: ${warning}\n`);
     if (plan.missingParams.length > 0) process.stderr.write(`missing params: ${plan.missingParams.join(", ")}\n`);
   });
+
+apiMap
+  .command("options-contract-deeplink")
+  .description("Plan web/mobile deeplinks and API lookup steps for one exact options contract")
+  .requiredOption("--account <account_number>", "selected Robinhood account_number")
+  .requiredOption("--symbol <symbol>", "underlying symbol, e.g. XBI")
+  .requiredOption("--expiration <YYYY-MM-DD>", "option expiration date")
+  .requiredOption("--type <call|put>", "option type")
+  .requiredOption("--side <buy|sell>", "trade side")
+  .requiredOption("--strike <strike>", "strike price")
+  .option("--position-effect <open|close>", "position effect", "open")
+  .option("--chain-id <chain_id>", "known Robinhood option chain id")
+  .option("--equity-instrument-id <uuid>", "known underlying equity instrument id")
+  .option("--option-id <option_instrument_id>", "known Robinhood option instrument id")
+  .option("--option-position-id <uuid>", "known held option position id for closing/detail deeplinks")
+  .option("--aggregate-position-id <uuid>", "known held aggregate option position id for closing/detail deeplinks")
+  .option("--source <source>", "deeplink/source marker", "robinhood-cli-deeplink")
+  .option("--json", "emit JSON")
+  .action(
+    (options: {
+      account: string;
+      symbol: string;
+      expiration: string;
+      type: "call" | "put";
+      side: "buy" | "sell";
+      strike: string;
+      positionEffect?: "open" | "close";
+      chainId?: string;
+      equityInstrumentId?: string;
+      optionId?: string;
+      optionPositionId?: string;
+      aggregatePositionId?: string;
+      source?: string;
+      json?: boolean;
+    }) => {
+      const plan = buildOptionsContractDeepLinkPlan({
+        accountNumber: options.account,
+        symbol: options.symbol,
+        expiration: options.expiration,
+        optionType: options.type,
+        side: options.side,
+        strike: options.strike,
+        positionEffect: options.positionEffect,
+        chainId: options.chainId,
+        equityInstrumentId: options.equityInstrumentId,
+        optionInstrumentId: options.optionId,
+        optionPositionId: options.optionPositionId,
+        aggregatePositionId: options.aggregatePositionId,
+        source: options.source
+      });
+      if (options.json) {
+        printJson(plan);
+        return;
+      }
+      process.stdout.write(`selector: ${plan.selector.symbol} ${plan.selector.expiration} ${plan.selector.strike} ${plan.selector.optionType} ${plan.selector.side}-${plan.selector.positionEffect}\n`);
+      process.stdout.write("\nweb deeplinks:\n");
+      for (const link of plan.webDeepLinks) process.stdout.write(`- [${link.confidence}] ${link.id}: ${link.url}\n`);
+      process.stdout.write("\nmobile deeplinks:\n");
+      for (const link of plan.mobileDeepLinks) process.stdout.write(`- [${link.confidence}] ${link.id}: ${link.url}\n`);
+      process.stdout.write("\napi resolution:\n");
+      for (const step of plan.apiResolutionSteps) process.stdout.write(`- ${step.method} ${step.url} (${step.id})\n`);
+      for (const warning of plan.warnings) process.stderr.write(`warning: ${warning}\n`);
+      if (plan.missingParams.length > 0) process.stderr.write(`missing params: ${plan.missingParams.join(", ")}\n`);
+    }
+  );
 
 program.addCommand(apiMap);
 

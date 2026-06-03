@@ -135,6 +135,79 @@ export interface OptionsStrategyOrderPlan {
   risk: "write-mutate";
 }
 
+export type OptionContractType = "call" | "put";
+export type OptionTradeSide = "buy" | "sell";
+export type OptionPositionEffect = "open" | "close";
+
+export interface OptionsContractDeepLinkInput {
+  accountNumber?: string;
+  symbol?: string;
+  expiration?: string;
+  optionType?: OptionContractType;
+  side?: OptionTradeSide;
+  strike?: string;
+  positionEffect?: OptionPositionEffect;
+  chainId?: string;
+  equityInstrumentId?: string;
+  optionInstrumentId?: string;
+  optionPositionId?: string;
+  aggregatePositionId?: string;
+  source?: string;
+}
+
+export interface OptionsContractDeepLinkPlan {
+  mode: "dry_run";
+  risk: "write-mutate";
+  selector: {
+    accountNumber?: string;
+    symbol?: string;
+    expiration?: string;
+    optionType?: OptionContractType;
+    side?: OptionTradeSide;
+    strike?: string;
+    positionEffect: OptionPositionEffect;
+    chainId?: string;
+    equityInstrumentId?: string;
+    optionInstrumentId?: string;
+    optionPositionId?: string;
+    aggregatePositionId?: string;
+    source: string;
+  };
+  webDeepLinks: Array<{
+    id: string;
+    url: string;
+    confidence: "observed" | "candidate";
+    purpose: string;
+  }>;
+  mobileDeepLinks: Array<{
+    id: string;
+    url: string;
+    confidence: "observed" | "candidate";
+    purpose: string;
+  }>;
+  queryParamCandidates: Record<string, string[]>;
+  apiResolutionSteps: Array<{
+    id: string;
+    method: "GET" | "POST";
+    url: string;
+    purpose: string;
+    required: boolean;
+  }>;
+  exactMatchChecklist: string[];
+  orderHandoff: {
+    endpoint: "https://api.robinhood.com/options/orders/";
+    strategyQuoteUrl: string;
+    orderTemplate: unknown;
+    requiredOrderParams: string[];
+  };
+  missingParams: string[];
+  warnings: string[];
+  evidence: Array<{
+    source: string;
+    finding: string;
+  }>;
+}
+
 export interface OptionsQuantReviewContract {
   intent: "open" | "close" | "roll" | "analyze";
   requiredFields: string[];
@@ -516,6 +589,315 @@ export function buildOptionsStrategyOrderPlan(
     warnings,
     mode: "dry_run",
     risk: "write-mutate"
+  };
+}
+
+function requireKnownValue<T extends string>(value: string | undefined, allowed: readonly T[], label: string): T | undefined {
+  if (value === undefined || value === "") return undefined;
+  const normalized = value.toLowerCase() as T;
+  if (!allowed.includes(normalized)) {
+    throw new Error(`${label} must be one of: ${allowed.join(", ")}`);
+  }
+  return normalized;
+}
+
+function webUrl(path: string, query: Record<string, string | undefined> = {}): string {
+  const url = new URL(path, "https://robinhood.com");
+  for (const [key, value] of Object.entries(query)) {
+    if (value !== undefined && value !== "") url.searchParams.set(key, value);
+  }
+  return url.toString();
+}
+
+function unescapeTemplatePlaceholders(value: string): string {
+  return value.replace(/%7B/g, "{").replace(/%7D/g, "}");
+}
+
+function apiUrl(path: string, query: Record<string, string | undefined> = {}): string {
+  const url = new URL(path, "https://api.robinhood.com");
+  for (const [key, value] of Object.entries(query)) {
+    if (value !== undefined && value !== "") url.searchParams.set(key, value);
+  }
+  return unescapeTemplatePlaceholders(url.toString());
+}
+
+function mobileUrl(path: string, query: Record<string, string | undefined> = {}): string {
+  const url = new URL(`robinhood://${path.replace(/^\/+/, "")}`);
+  for (const [key, value] of Object.entries(query)) {
+    if (value !== undefined && value !== "") url.searchParams.set(key, value);
+  }
+  return unescapeTemplatePlaceholders(url.toString());
+}
+
+export function buildOptionsContractDeepLinkPlan(input: OptionsContractDeepLinkInput): OptionsContractDeepLinkPlan {
+  const optionType = requireKnownValue(input.optionType, ["call", "put"], "option type");
+  const side = requireKnownValue(input.side, ["buy", "sell"], "side");
+  const positionEffect = requireKnownValue(input.positionEffect ?? "open", ["open", "close"], "position effect") ?? "open";
+  const symbol = input.symbol?.trim().toUpperCase();
+  const strike = input.strike?.trim();
+  const expiration = input.expiration?.trim();
+  const source = input.source?.trim() || "robinhood-cli-deeplink";
+  const missing = new Set<string>();
+  for (const [key, value] of Object.entries({
+    account_number: input.accountNumber,
+    symbol,
+    expiration,
+    type: optionType,
+    side,
+    strike
+  })) {
+    if (!value) missing.add(key);
+  }
+
+  const chainPath = `/options/chains/${encodeURIComponent(symbol || "{symbol}")}`;
+  const contractQuery = {
+    account_number: input.accountNumber,
+    expiration,
+    expiration_date: expiration,
+    expiration_dates: expiration,
+    type: optionType,
+    option_type: optionType,
+    side,
+    action: side,
+    strike,
+    strike_price: strike,
+    position_effect: positionEffect,
+    source
+  };
+  const accountChainUrl = webUrl(chainPath, { account_number: input.accountNumber });
+  const candidateContractUrl = webUrl(chainPath, contractQuery);
+  const fragment = new URLSearchParams(
+    Object.fromEntries(Object.entries(contractQuery).filter((entry): entry is [string, string] => Boolean(entry[1])))
+  ).toString();
+  const optionInstrumentToken = input.optionInstrumentId || "{option_instrument_id}";
+  const chainIdToken = input.chainId || "{chain_id}";
+  const strategyQuoteUrl = apiUrl("/marketdata/options/strategy/quotes/", {
+    ids: optionInstrumentToken,
+    ratios: "1",
+    types: side
+  });
+  const direction = side === "buy" ? "debit" : "credit";
+
+  const webDeepLinks: OptionsContractDeepLinkPlan["webDeepLinks"] = [
+    {
+      id: "options-chain-account-shell",
+      url: accountChainUrl,
+      confidence: input.accountNumber ? "observed" : "candidate",
+      purpose: "Open the Robinhood web options-chain shell with explicit account context."
+    },
+    {
+      id: "options-chain-contract-query-candidate",
+      url: candidateContractUrl,
+      confidence: "candidate",
+      purpose:
+        "Probe whether web state accepts expiration/type/side/strike query params. The browser pass has not proven these keys."
+    },
+    {
+      id: "options-chain-contract-fragment-candidate",
+      url: `${accountChainUrl}#${fragment}`,
+      confidence: "candidate",
+      purpose: "Probe a fragment-state variant without changing the server-visible query string."
+    }
+  ];
+
+  const mobileDeepLinks: OptionsContractDeepLinkPlan["mobileDeepLinks"] = [
+    {
+      id: "mobile-options-chain-shell-candidate",
+      url: mobileUrl(`/options/chains/${encodeURIComponent(symbol || "{symbol}")}`, contractQuery),
+      confidence: "candidate",
+      purpose: "App-scheme candidate for the option-chain shell; exact unopened-contract routing still needs device validation."
+    }
+  ];
+  if (input.aggregatePositionId) {
+    mobileDeepLinks.push({
+      id: "mobile-aggregate-option-position-observed",
+      url: mobileUrl("/aggregate_option_position", {
+        id: input.aggregatePositionId,
+        account_number: input.accountNumber,
+        show_in_tab: "true"
+      }),
+      confidence: "observed",
+      purpose: "Open a held aggregate option position; Android decompile reads id and account_number."
+    });
+  }
+  if (input.optionPositionId) {
+    mobileDeepLinks.push({
+      id: "mobile-option-position-observed",
+      url: mobileUrl("/option_position", { id: input.optionPositionId, show_in_tab: "true" }),
+      confidence: "observed",
+      purpose: "Open a held option-position detail; Android decompile reads id and show_in_tab."
+    });
+  }
+
+  const apiResolutionSteps: OptionsContractDeepLinkPlan["apiResolutionSteps"] = [
+    {
+      id: "resolve-equity-instrument",
+      method: "GET",
+      url: apiUrl("/instruments/", { symbol }),
+      purpose: "Resolve the equity instrument UUID if it was not supplied.",
+      required: !input.equityInstrumentId
+    },
+    {
+      id: "resolve-chain-by-symbol",
+      method: "GET",
+      url: apiUrl("/options/chains/", {
+        account_number: input.accountNumber,
+        underlying_symbol: symbol
+      }),
+      purpose: "Get chain ids available to the selected account and symbol.",
+      required: !input.chainId
+    },
+    {
+      id: "resolve-chain-by-equity-instrument",
+      method: "GET",
+      url: apiUrl("/options/chains/", {
+        account_number: input.accountNumber,
+        equity_instrument_id: input.equityInstrumentId || "{equity_instrument_id}"
+      }),
+      purpose: "Fallback chain lookup when symbol routing is ambiguous or for index/edge cases.",
+      required: Boolean(input.equityInstrumentId) && !input.chainId
+    },
+    {
+      id: "resolve-contracts-for-expiration-type",
+      method: "GET",
+      url: apiUrl("/options/instruments/", {
+        account_number: input.accountNumber,
+        chain_id: chainIdToken,
+        expiration_dates: expiration,
+        state: "active",
+        type: optionType
+      }),
+      purpose: "Enumerate contracts for the selected expiration and call/put side; filter by exact strike_price.",
+      required: !input.optionInstrumentId
+    },
+    {
+      id: "quote-single-contract",
+      method: "GET",
+      url: apiUrl("/marketdata/options/", {
+        ids: optionInstrumentToken,
+        include_all_sessions: "true"
+      }),
+      purpose: "Fetch mark/bid/ask/greeks for the exact option instrument id.",
+      required: true
+    },
+    {
+      id: "quote-single-leg-strategy",
+      method: "GET",
+      url: strategyQuoteUrl,
+      purpose: "Ask Robinhood for package pricing using the same ids/ratios/types shape used by spreads.",
+      required: false
+    },
+    {
+      id: "check-chain-collateral",
+      method: "GET",
+      url: apiUrl(`/options/chains/${encodeURIComponent(chainIdToken)}/collateral/`, {
+        account_number: input.accountNumber
+      }),
+      purpose: "Check collateral/margin context before short or uncovered strategies.",
+      required: side === "sell" || positionEffect === "close"
+    },
+    {
+      id: "handoff-order-endpoint",
+      method: "POST",
+      url: "https://api.robinhood.com/options/orders/",
+      purpose: "Dry-run handoff only; live send still requires exact approval and the double write gate.",
+      required: true
+    }
+  ];
+
+  return {
+    mode: "dry_run",
+    risk: "write-mutate",
+    selector: {
+      accountNumber: input.accountNumber,
+      symbol,
+      expiration,
+      optionType,
+      side,
+      strike,
+      positionEffect,
+      chainId: input.chainId,
+      equityInstrumentId: input.equityInstrumentId,
+      optionInstrumentId: input.optionInstrumentId,
+      optionPositionId: input.optionPositionId,
+      aggregatePositionId: input.aggregatePositionId,
+      source
+    },
+    webDeepLinks,
+    mobileDeepLinks,
+    queryParamCandidates: {
+      account: ["account_number"],
+      expiration: ["expiration", "expiration_date", "expiration_dates"],
+      optionType: ["type", "option_type"],
+      side: ["side", "action"],
+      strike: ["strike", "strike_price"],
+      positionEffect: ["position_effect"],
+      source: ["source"]
+    },
+    apiResolutionSteps,
+    exactMatchChecklist: [
+      "account_number matches the intended Robinhood account in the selector and API response context",
+      "symbol resolves to the intended equity_instrument_id",
+      "chain_id belongs to the selected account and underlying",
+      "expiration_dates equals the requested expiration",
+      "type equals call or put exactly",
+      "strike_price equals the requested strike after decimal normalization",
+      "option instrument state is active/tradable for open orders, or position exists for close orders",
+      "side and position_effect are explicit; do not infer buy-to-open, sell-to-open, buy-to-close, or sell-to-close",
+      "marketdata/options quote id equals the selected option instrument id",
+      "for any spread or strategy, every leg repeats the same account/chain/expiration verification"
+    ],
+    orderHandoff: {
+      endpoint: "https://api.robinhood.com/options/orders/",
+      strategyQuoteUrl,
+      orderTemplate: {
+        account: input.accountNumber ? `https://api.robinhood.com/accounts/${input.accountNumber}/` : "https://api.robinhood.com/accounts/{account_number}/",
+        direction,
+        legs: [
+          {
+            side,
+            option: `https://api.robinhood.com/options/instruments/${optionInstrumentToken}/`,
+            position_effect: positionEffect,
+            ratio_quantity: 1
+          }
+        ],
+        type: "limit",
+        time_in_force: "{time_in_force}",
+        trigger: "immediate",
+        price: "{limit_price}",
+        quantity: "{quantity}",
+        ref_id: "{ref_id}"
+      },
+      requiredOrderParams: ["option_instrument_id", "limit_price", "quantity", "time_in_force", "ref_id"]
+    },
+    missingParams: [...missing],
+    warnings: [
+      "Dry-run planner only. This command opens nothing and sends no Robinhood order.",
+      "Only account_number on the web options-chain shell is browser-observed. Expiration, strike, side, and type query keys are candidate probe keys, not proven URL state.",
+      "For exact contracts, prefer API resolution: chains -> instruments filtered by expiration/type/strike -> marketdata/options -> strategy quote -> dry-run order body.",
+      "Live options orders remain blocked unless exact user approval, --live-write, and ROBINHOOD_ALLOW_LIVE_WRITE=1 are all present.",
+      ...riskWarnings("write-mutate")
+    ],
+    evidence: [
+      {
+        source: "api-map/account-context-browser-workflows-2026-06-02.json",
+        finding: "The options-chain web shell accepted account_number as mixed account-context routing; exact contract fields were not encoded in the location bar."
+      },
+      {
+        source: "ScriptedAlchemy/robinhood-decompiled: OptionChainIntentKey.java",
+        finding:
+          "Android navigation carries equityInstrumentId, optionChainIdLaunchMode, targetLegs, targetStrikePrice, initialFilter, initialAccountNumber, and source."
+      },
+      {
+        source: "ScriptedAlchemy/robinhood-decompiled: OptionOrderIntentKey.java",
+        finding:
+          "Android option order navigation carries initialAccountNumber, optionOrderBundle, order replacement fields, prefilled order type/time-in-force, source, and strategyCode."
+      },
+      {
+        source: "ScriptedAlchemy/robinhood-decompiled: AggregateOptionPositionDeeplinkTarget.java",
+        finding: "Held aggregate option positions accept id plus account_number as mobile deeplink query parameters."
+      }
+    ]
   };
 }
 
