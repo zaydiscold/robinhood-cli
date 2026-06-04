@@ -32,6 +32,10 @@ Operate real Robinhood brokerage accounts from the terminal or via MCP tools. Th
 This skill is a progressive-disclosure entrypoint, not the whole repository
 loaded into context. Use it in layers:
 
+0. **Boot smart.** Read `docs/agent-operating-intelligence-2026-06-04.md` first — the distilled
+   operating intelligence (boot checklist, the "verify the API surface not the UI" cardinal rule,
+   the account model + wrong-account trap, order lifecycle, a failure-mode→fix decision tree, the
+   asset-class reality map, and the roadmap). It's what turns a cold agent into a competent operator.
 1. **Boot from this file.** Read the safety model, auth rules, account discovery
    commands, and current read/write surface first.
 2. **Pull focused references only when needed.** Use `AGENTS.md` for end-to-end
