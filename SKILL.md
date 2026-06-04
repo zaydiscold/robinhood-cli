@@ -65,7 +65,7 @@ requires a specific route family.
 Load this skill when:
 - The user asks about Robinhood — portfolio, positions, orders, watchlists, options chains
 - You need to query account data (balances, positions, orders, watchlists, dividends)
-- The user mentions any of their accounts (the Agentic-nicknamed ones, the Roth, or any of the 5)
+- The user mentions any account they want operated (the operator designates which account to act on)
 - You need to place or preview a trade (equity, options), cancel orders, resume/pause recurring buys
 - The user mentions tickers, symbols, stock prices, or market data
 - You're debugging the route map, the CLI, or the MCP server
@@ -164,7 +164,7 @@ vs "aggressive." Risk is the user's call: surface the mechanics/options, then do
 Almost every Robinhood surface is account-scoped, and **`?account_number=<ACCT>` (web) / the
 `{account}` path segment (API) selects WHICH account it acts on — even where the UI hides the
 selector.** Verified: appending `?account_number=` to `/account/investing` forces that account's
-settings to render (Roth param → Roth IRA; 9mo param → far 9mo plus), and every per-account settings
+settings to render (e.g. an IRA's account_number → that IRA's settings), and every per-account settings
 write carries the account in the path (`drip/account_settings/{account}/`,
 `options/option_settings/{account}/`, `settings/margin/{account}/`).
 
@@ -812,8 +812,8 @@ the leg set and `direction` change.
 
 Always read `account.type` and `brokerage_account_type` first and **annotate what
 the account can and cannot do** before planning a write. This is required behavior,
-not a nicety — the user holds a cash account and several margin accounts, and the
-allowed actions differ:
+not a nicety — operators typically hold a mix of cash, margin, and IRA accounts, and the
+allowed actions differ by type:
 
 | Account type | Can | Cannot / caution |
 |--------------|-----|------------------|
@@ -889,8 +889,8 @@ Verified live, not theorized:
   Read the chain's ticks; never assume $0.01.
 - **GTC options open is gated by _overnight_ buying power**, not regular BP. A `time_in_force: gtc`
   buy-to-open on thin overnight BP → 400 *"not enough overnight buying power"* even when regular BP
-  looks fine. (Cross-account test: ARKG $0.05 call → `201 queued` in the 9mo, `400` overnight-BP in
-  the Roth + near-3mo individual.)
+  looks fine. (Verified cross-account: the same ARKG $0.05 call `201 queued` in one margin account but
+  `400` overnight-BP in others — overnight BP, not regular BP, decides.)
 - **No version gate on options.** `options/orders/` takes the standard body (no `order_form_version`)
   — the version gate is equity-only.
 - **Lifecycle (verified):** POST `options/orders/` (`201 queued`) → `options/orders/{0}/cancel/`
@@ -1170,18 +1170,16 @@ Full details: `AGENTS.md` §6, §11.
 
 ## Accounts
 
-The user's Robinhood login has 5 accounts across individual brokerage, Roth IRA, and crypto. The
-**funded accounts hold the portfolio and are where real trading happens** — discover which those are
-at runtime by reading buying power; never assume. Two accounts are nicknamed "Agentic"/"Agentic-long":
+**The operator designates which account(s) the agent may control.** Do not assume which account a
+given action targets, do not assume which is "primary," and never hardcode account numbers. Discover
+accounts at runtime (§2 of AGENTS.md — `transfer/accounts/` for the full list) and read buying power to
+see which are funded; then act only on the account the operator names. Account types you may encounter:
+individual brokerage (cash or margin), Roth IRA, and crypto — capabilities differ by type (see the
+account-capability table). Some accounts may be nicknamed; a nickname implies nothing about funding or
+priority. When the target account is unclear, ask.
 
-| Nickname | Type | Note |
-|----------|------|------|
-| Agentic | individual | Just an account — NOT a main/primary trading account; typically ~$0 |
-| Agentic-long | individual | Just an account — NOT a main/primary trading account; typically ~$0 |
-
-**Never hardcode account numbers, and never assume which account is "primary."** Discover them at
-runtime (§2 of AGENTS.md) and read buying power to see which are funded. The Agentic-nicknamed accounts
-are ordinary accounts that usually sit near $0 — they are not the main trading accounts.
+**Never hardcode account numbers; never assume which account is "primary"; act only on accounts the
+operator designates.**
 
 ---
 
@@ -1316,7 +1314,7 @@ Full details: `AGENTS.md` §9.
 - [ ] `pnpm install && pnpm build` completes without errors
 - [ ] `.env` exists with a valid `ROBINHOOD_BROKERAGE_TOKEN`
 - [ ] `node cli/dist/index.js brokerage execute "accounts/" --json` returns 200
-- [ ] `node cli/dist/index.js brokerage execute "bonfire.robinhood.com/transfer/accounts/" --json --full` shows all 5 accounts
+- [ ] `node cli/dist/index.js brokerage execute "bonfire.robinhood.com/transfer/accounts/" --json --full` shows the full account list
 - [ ] `node cli/dist/index.js brokerage execute "portfolios/" --json --full` returns portfolio data
 - [ ] MCP server starts: `node mcp/dist/server.js` (or `hermes mcp add` registered)
 - [ ] Route map count: `node cli/dist/index.js brokerage routes --json | python3 -c "import sys,json;print(json.load(sys.stdin)['count'])"` returns the live count (~300+ and growing — do NOT assert a hardcoded number; the count drifts as routes are captured)
