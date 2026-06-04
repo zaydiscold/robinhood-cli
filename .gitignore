@@ -8,5 +8,6 @@ fixtures/private/
 info/
 PLAN.local.md
 ARCHITECTURE.local.md
+ROBINHOOD-LIVE-NUANCE.local.md
 *.log
 *.tgz
