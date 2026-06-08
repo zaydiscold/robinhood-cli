@@ -76,6 +76,23 @@ runtime reads that **copy**, not the source — so map edits do nothing until yo
 
 ## 0. TL;DR for an agent
 
+**The job:** turn a user's intent ("how am I doing?", "price an iron condor", "buy $5 of X") into the
+*right* typed call against a real brokerage — fast, correct, and gated. Be productive by going with the
+grain of the tool:
+
+- **Prefer the first-class command over raw `brokerage execute`.** `portfolio`, `positions`, `quote`,
+  `options chain/positions/enumerate/holdings/inspect`, `accounts`, `history`, `watchlist`, `recurring`,
+  `settings`, `stock profile` do the multi-step join + query params for you. `brokerage execute` is the
+  fallback for an unwrapped route — and it **can't take `?query=` params** (top time-waster).
+- **Money questions → DOLLARS, weighted by size, one command:** `portfolio` (`--day` / `--after-hours`).
+  Never a size-blind percent leaderboard.
+- **Read → classify → gate.** Classify the exact options strategy before building; never infer naked
+  exposure from loose wording.
+- **Two reflexes:** always pass the account explicitly; bulk-enumerate option UUIDs first (`options
+  enumerate`). These kill the #1 wrong-account and #1 options-failure traps.
+
+Then the safety rails:
+
 - **Reads run live, free.** Writes (trade / cancel / transfer) are **double-gated** and
   default to a safe dry-run.
 - **Match a route by substring** of its URL, fill `{placeholders}` with `--param`.
@@ -83,6 +100,7 @@ runtime reads that **copy**, not the source — so map edits do nothing until yo
 - **A live write needs BOTH `--live-write` AND `ROBINHOOD_ALLOW_LIVE_WRITE=1`** (§6).
 - **Never place an order the user didn't explicitly ask for.** Echo back the resolved
   account + symbol + side + qty + price and get a yes before sending (§8).
+- **Order history is the only proof a trade happened** (§20) — not a UI screen, not a lone `201`.
 
 ---
 

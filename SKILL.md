@@ -24,6 +24,37 @@ metadata:
 > reference is [`AGENTS.md`](AGENTS.md)** in the repo root (next to this file) — open it directly.
 > When in doubt, read BOTH `AGENTS.md` and `SKILL.md` before acting. Don't guess; the docs are there.
 
+## 🎯 What this is — and how to be a productive operator
+
+**This is an agent-native control plane for a *real* Robinhood account.** It collapses the entire
+research → decision → execution loop into one typed, gated pipe: read the account truthfully, reason
+like an options trader, and — only on the operator's explicit go-ahead, behind two write gates — act,
+across **every** account and the full surface (equities, options, multi-leg strategies, rolls,
+recurring, account settings, crypto). It drives the account the operator already has; it is **not** the
+official equity-only "agent sandbox."
+
+**Be productive by going with the grain of the tool. Five moves separate a strong operator from one that flails:**
+
+1. **Reach for the first-class command, not raw `brokerage execute`.** `portfolio`, `positions`,
+   `quote`, `options chain/positions/enumerate/holdings/inspect`, `accounts`, `history`, `watchlist`,
+   `recurring`, `settings`, `stock profile` each do the multi-step join + query params for you. Drop to
+   `brokerage execute` only for a route that has no command yet. (`brokerage execute` can't take
+   `?query=` params — assuming it can is the single biggest time-waster here.)
+2. **Answer money questions in DOLLARS, weighted by position size — never a percent leaderboard.**
+   "How am I down today / after hours, and which names?" is exactly one command: `portfolio`
+   (`--day` / `--after-hours`). A −9% move on a $6 lot is noise; a −5% move on a $1,600 call is the story.
+3. **Read → classify → gate, in that order.** Reads are free and live. Before any write: classify the
+   *exact* strategy (sell-to-close ≠ covered call ≠ credit spread ≠ naked short), echo the resolved
+   account + symbol + side + qty + price, then send only with BOTH gates. Never infer naked exposure
+   from loose wording.
+4. **Make two things reflex: pass the account explicitly, and bulk-enumerate option UUIDs first.** The
+   #1 wrong-account risk and the #1 options-failure both disappear if these are automatic, not afterthoughts.
+5. **Order history is the only proof a trade happened** — not a UI screen, not a lone `201`, not "I
+   clicked it." If it's not in `orders/` / `options/orders/`, it did not execute.
+
+Everything below expands these. Cold start? Read `docs/agent-operating-intelligence-2026-06-04.md` first,
+then this file. When the answer isn't obvious, the docs already have it — read, don't guess.
+
 ## ⚡ Agent Quick Scan *(read this in 5 seconds)*
 
 - **What:** CLI + MCP for a REAL Robinhood brokerage account. Reads are live and free. Writes are double-gated (dry-run by default).
@@ -1203,7 +1234,7 @@ documented. To extend it safely:
 
 > **Count note:** the *source/dist* registers 28 tools. A *running* MCP process started before the
 > last tool additions will still advertise its old count until reloaded — run `/reload-mcp` (or restart
-> the server) after pulling, then confirm the client lists all 27.
+> the server) after pulling, then confirm the client lists all 28.
 
 ### Registration
 
@@ -1300,7 +1331,7 @@ Always try Syncthing before fighting with SSH.
 ### Route Map & Build
 
 1. **Editing source without rebuilding.** The runtime reads `cli/dist/api-map/`, not `api-map/`. Rebuild after every map edit: `pnpm --filter @zaydiscold/robinhood-cli build`.
-2. **`url_template` vs `url`.** 9 watchlist routes use `url_template`; the engine matches on `url` only. Copy `url_template` → `url` in both copies. (Fixed locally, not pushed.)
+2. **`url_template` vs `url`.** The engine matches on `url` only. 9 watchlist (`discovery/lists`) routes once carried only `url_template` and were silently unmatchable; that was repaired (commit `c2dd79f`) — they now carry both keys. If you add a route, give it a `url`; after any map edit, rebuild so `dist` matches.
 3. **`accounts/` under-reports.** Shows only 2 accounts. Use `bonfire.robinhood.com/transfer/accounts/` for the complete list.
 4. **Route matching is substring-based.** A raw account number won't match `portfolios/{num}/`. Use brace syntax + `--param`.
 
