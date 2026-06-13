@@ -1,5 +1,67 @@
 # TODO — robinhood-cli hardening roadmap
 
+## Execution safeties — checks and balances (added 2026-06-11)
+
+- [x] **`pretrade` gate command** (BUILT 2026-06-11: CLI `pretrade` + MCP `robinhood_pretrade`, PASS/WARN/BLOCK checklist, marketability left as manual gated POST): one shot that runs buying power + options collateral + marketability +
+  min-tick + account-capability checks before any order. Routes already mapped (`options/orders/review`,
+  `options/orders/marketability/`, `options/orders/collateral/`, `accounts/{account}/options_buying_power`) —
+  wire them into one command + MCP tool that emits PASS/BLOCK per check.
+- [x] **Post-send evidence verification in code** (BUILT 2026-06-11: `verifyOrderEvidence()` in engine; buy/sell/cancel attach evidence{confirmed,state,id}): after any live send, auto re-read `orders/` /
+  `options/orders/` and print the order record (id + state). Failure mode #20 is currently a doc rule;
+  make it engine behavior so "order placed" claims are impossible without evidence.
+- [ ] **Notional guardrails**: configurable per-order and per-session dollar caps (e.g. `local/guardrails.json`),
+  exceeded only with an explicit `--override-cap` flag. The checks-and-balances layer for agentic sends.
+- [x] **`panic` command** (BUILT 2026-06-11: CLI `panic` + MCP `robinhood_panic` + `orders open` view; per-cancel gating + evidence): cancel ALL open orders across ALL accounts (double-gated). Kill switch.
+- [ ] **`order watch`**: place → poll until filled/rejected/cancelled → report; single command lifecycle.
+- [ ] **Payoff in strategy-quote summary**: print max profit / max loss / breakevens on the human output
+  (the reviewContract requires them; today the table shows legs + limit but not payoff. Live example:
+  GOOGL 340/350 call debit @ $6.37 should print max loss $637 / max profit $363 / breakeven $346.37).
+
+## New surfaces probed live 2026-06-11 (all reads, real auth)
+
+- [x] **`dividends` first-class command** (BUILT 2026-06-11: cadence detection incl weekly, held-only projection, --upcoming/--by-month; MCP robinhood_dividends): `dividends/` is live-verified (102 records: amount, rate,
+  ex/record/payable dates, withholding, per-dividend drip_enabled). Build: income by symbol/year,
+  upcoming payouts, `--account N`, `--json`. Map entry upgraded to verified fields.
+- [x] **`documents` first-class command** (BUILT 2026-06-11: list+download, tax-year aware, 1099 prefix match; MCP robinhood_documents): `documents/` is live-verified (cursor-paginated; types:
+  1099, 1099_crypto, 1099r_roth, 5498_roth, account_statement, trade_confirm; `download_url` serves
+  the PDF). Build: list + filter by type/year + download-all-1099s. Tax-season one-shot.
+- [x] **`margin` health command** (BUILT 2026-06-11: all-account scan, money-object unwrap, plain-English borrow line; MCP robinhood_margin): `margin/{account_number}/investing_info/` live-verified on the api
+  host — amount_borrowed, margin_interest_rate, next_billing_date, projected intraday BP. Surface in
+  `portfolio` too: an account borrowing on margin should say so (live: …0497 borrowing $[redacted] @ rate).
+- [ ] **phoenix.robinhood.com is TLS-walled** (handshake refused, like ceres futures) — the app-only
+  unified-balances host. Don't chase it; the per-account composition already covers balances.
+- [ ] **Options per-position P&L endpoint still unknown** (web UI shows it) — needs a CDP capture pass
+  on the options position page.
+- [ ] **Doc contradictions to reconcile (found 2026-06-11, 9 items)**: iron-condor leg names differ
+  between SKILL.md sections (catalog JSON ids are authoritative); naked-short-call leg id; after-hours
+  options self-contradiction in SKILL.md; wash-sale strictness differs between rolling deep-dive and
+  tax doc; SKILL 38 vs TODO 37 tool count; account mask …7523 vs ••••2523; `?account=` vs
+  `?account_number=` in order-templates doc; PDT-lifted vs vestigial PDT toggles; "18 strategy
+  workflows" vs 20 catalog ids.
+
+
+## Feature ideas backlog (2026-06-11 pass — beginner through veteran)
+
+- [ ] `order watch` — place → poll → report fill/reject; one-command lifecycle.
+- [ ] Notional caps — per-order/per-session dollar ceilings, explicit override flag.
+- [ ] `whatif` — Greeks-based scenario calc: spot ±X%, IV ±N pts, T-n days → position P&L in dollars.
+- [ ] `calendar` — upcoming events for HELD names: option expirations, ex-div dates (assignment risk on covered calls), earnings.
+- [ ] `risk` — portfolio scan: max loss across open positions, assignment exposure, undercovered short legs, margin-call distance.
+- [ ] `income` — combined income view: dividends + option premium collected, by month, in dollars.
+- [ ] `coach` mode — beginner tier: explain any held position/order in plain English with the math shown (possible revival of the old `explain` idea).
+- [ ] Auto-journal nudge — after a fill, prompt a `review note` so film-study notes accumulate at the moment of the trade.
+- [ ] `exposure` — concentration by underlying/sector + portfolio-wide net Greeks.
+
+## Social / showcase layer (parked 2026-06-11 — v2, after core)
+
+- [ ] **Trade cards + success graphics framework**: HTML template framework that renders a trade
+  (entry/exit, P&L in dollars, payoff diagram, thread context from trading-log.md) as a shareable
+  card image, auto-generated per stock/play on command. For the groupchat + the GitHub readme.
+- [ ] **Groupchat trade-share pipeline (pvp.trade angle)**: parse a friend's posted trade screenshot →
+  canonical contract spec → dry-run quote in YOUR account with YOUR account-type gating → discuss → gated send.
+  pvp.trade does social copy-trading on Hyperliquid; this is the brokerage-grade version: discuss + price +
+  verify before any copy. Depends on: broker-call playbook (shipped in knowledge/playbooks/), trade cards above.
+
 ## High priority
 
 - [x] **Web app version auto-scrape**: Done 2026-06-11 — `pnpm version:refresh` (`scripts/scrape-web-app-version.mjs`) CDP-attaches to a debug Chrome (port 9222), loads the login page (the SPA shell sends the header pre-auth, no RH login needed), captures `x-robinhood-web-app-version` from the network stream, and writes it to `.env`. Live-verified: captured `2026.24.3589+55c48b8f7a1c`. (Earlier finding: the version is NOT in the homepage HTML — the login-page network capture is the reliable route.)
@@ -53,16 +115,16 @@
 - [ ] Good news: your own CLI doesn't need agentic_allowed — it trades on any account via web bearer token
 
 ### Live auth needed for these verified endpoints (all in api-map, just need working token):
-- [ ] `margin/{id}/investing_info/` — margin used, maintenance, available
+- [x] `margin/{account_number}/investing_info/` — LIVE-VERIFIED 2026-06-11 on the **api host** (200): amount_borrowed, margin_interest_rate, next_billing_date, projected intraday BP. The margin-health read — first-class `margin` command candidate.
 - [ ] `margin/{id}/settings/` — margin tier, PDT protection toggle (PUT)
-- [ ] `margin/{id}/day_trades_card/` — PDT counter
+- [x] ~~`margin/{id}/day_trades_card/` — PDT counter~~ — 404 live 2026-06-11; retired with the PDT elimination (FINRA 26-10). Drop from the map's promises.
 - [ ] `settings/margin/{account}/` — PDT protection toggle
-- [ ] `corp_actions/drip/account_settings/{account}/` — DRIP toggle (PATCH)
+- [x] `corp_actions/drip/account_settings/{account}/` — GET LIVE-VERIFIED 2026-06-11 (200, `drip_enabled: true`); the PATCH toggle remains untested live.
 - [ ] `corp_actions/drip/instrument_settings/{account}/{id}/` — per-stock DRIP (PATCH)
 - [ ] `accounts/{account}/sweep_enrollment_state/` — cash sweep toggle (POST)
-- [ ] `slip/{account}/status/` — stock lending toggle (PUT)
+- [ ] `slip/{account}/status/` — stock lending toggle (PUT). NOTE 2026-06-11: 404 at `api.robinhood.com/slip/{account}/status/` — path/host needs a fresh CDP capture (likely bonfire or a different segment).
 - [ ] `options/option_settings/{num}/` — options trading settings (PATCH verified!)
-- [ ] `accounts/{account}/options_buying_power` — options buying power
+- [ ] `accounts/{account}/options_buying_power` — options buying power. NOTE 2026-06-11: 404 at that path — re-capture the real route from the web order ticket.
 - [ ] `options/orders/collateral/` — options collateral pre-check
 - [ ] `options/orders/review` — options order review (POST)
 - [ ] `options/orders/marketability/` — marketability check (POST)
@@ -84,4 +146,4 @@
 | ••••2523 Agentic-long | $0 |
 | **TOTAL** | **$[redacted]** |
 
-<!-- made with love by Zayd Khan / cold -->
+<!-- Zayd Khan // cold // www.zayd.wtf -->

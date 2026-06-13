@@ -61,4 +61,4 @@ mutations are part of this release.
 - Exact unopened-contract URL selection is still not claimed. Exact contract
   resolution is API-first; web/app links are navigation handoffs.
 
-<!-- made with love by Zayd Khan / cold -->
+<!-- Zayd Khan // cold // www.zayd.wtf -->

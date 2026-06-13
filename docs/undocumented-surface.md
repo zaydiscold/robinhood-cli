@@ -61,7 +61,9 @@ Current counts after the 2026-06-03 options/account-settings hardening pass:
   Fractional buys use `dollar_based_amount: {amount, currency_code}` (server computes shares);
   whole-share/OTC buys use `price` + `quantity`. Full body shapes in `AGENTS.md`.
 - **OTC names** (`otc_market_tier` non-empty, `fractional_tradability: "position_closing_only"`,
-  e.g. RNECY) **reject `type: market`** — must be a marketable **limit** at the ask, whole shares.
+  e.g. RNECY) **reject `type: market`** — buy AND sell are both supported, but only as whole
+  shares with a marketable **limit** at the marketable side (buy at the ask, sell at the bid;
+  the shared engine auto-limits when no explicit price is given).
 - **Rate limit:** `orders/` burst-limits *fractional* orders — ~9 then HTTP **429**
   (*"Too many requests for fractional orders"* / *"throttled, available in N seconds"*, ~48s
   cooldown). Honor it by sleeping the directed seconds and retrying the same `ref_id` (429 =
@@ -84,4 +86,4 @@ When a new undocumented route is discovered, record:
 5. Rate-limit behavior.
 6. Risk classification and whether it is safe for `brokerage execute`.
 
-<!-- made with love by Zayd Khan / cold -->
+<!-- Zayd Khan // cold // www.zayd.wtf -->

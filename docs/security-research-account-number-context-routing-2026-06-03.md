@@ -149,4 +149,4 @@ Treat this as context-routing intelligence. It improves navigation and endpoint
 mapping, but every real action must still be built from explicit API fields,
 dry-run output, and exact user approval.
 
-<!-- made with love by Zayd Khan / cold -->
+<!-- Zayd Khan // cold // www.zayd.wtf -->

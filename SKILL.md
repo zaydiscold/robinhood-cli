@@ -469,9 +469,18 @@ Do not overclaim first-class support. If a capability is route-map-only, say so 
 
 Primary references:
 
+- **`knowledge/` — the agent knowledge library (load the module for your task, not everything):**
+  `knowledge/README.md` is the index. Per-topic operating modules: `wheel.md`, `rolling.md` (incl. the
+  kosher roll), `multi-leg.md`, `greeks.md`, `tax.md`, `accounts.md`, `signals.md`, `execution-safety.md`,
+  plus **`knowledge/playbooks/broker-call.md`** — the tested end-to-end conversational trade pipeline
+  (parse → classify → research → enumerate → dry-run quote → confirmation contract → gated send →
+  order-history evidence → trading-log entry). Progressive disclosure: SKILL.md routes, knowledge/
+  teaches, docs/ proves, AGENTS.md is the full API reference.
 - `docs/README.md` (docs index) and `docs/agent-operating-intelligence-2026-06-04.md` (**boot-smart KB — read first**)
 - `ball-knowledge.md` (repo root) — the operator's investing-memory ledger; see SKILL "Ball Knowledge" + "Signal sourcing"
 - `trading-log.md` (repo root) — execution + intent history; see SKILL "Trading log"
+- `trade-notes.md` (repo root) — film-study notes attached to trades; `review` joins them onto round trips by ref (`review note <ref> "<text>"` appends)
+- `hotlist.md` (repo root) — operator-maintained ticker watchlist + theses; read it on finance tasks alongside ball-knowledge.md (`hotlist` quotes it live)
 - `docs/strategy-deep-dive-the-wheel-2026-06-04.md`, `docs/strategy-deep-dive-rolling-options-2026-06-04.md` — multi-POV strategy deep-dives with dissertation-level Quant appendices
 - `docs/institutional-outlook-2026-06-04.md` — year-ahead + CMA regime synthesis (info, not mandate; refresh each cycle)
 - `docs/options-greeks-strategy-research-2026-06-02.md`
@@ -1005,11 +1014,13 @@ Verified live, not theorized:
 - **Place with `brokerage buy`** (single) or `scripts/equity-buy.mjs` (batches) — both build the
   web order body (`order_form_version: 7` + live bid/ask collar):
   - `brokerage buy ORCU --account <num> --dollars 5` → fractional dollar-notional (market).
-  - `brokerage buy RNECY --account <num> --shares 1` → whole shares; **OTC auto-limits at ask**.
+  - `brokerage buy RNECY --account <num> --shares 1` → whole shares; **OTC auto-limits at the
+    marketable side — ask on buys, bid on sells** (`sell` is the mirror, same engine).
   - Dry-run by default; live needs `--live-write` + `ROBINHOOD_ALLOW_LIVE_WRITE=1`.
 - **OTC / fractional guard.** Before a dollar order the tool reads `fractional_tradability` +
   `otc_market_tier`. OTC names (e.g. RNECY) are `position_closing_only` and **reject market
-  orders** — buy them as **whole shares via a marketable limit**. "$X of <OTC>" is impossible;
+  orders** — trade them (buy AND sell both supported) as **whole shares via an auto marketable
+  limit** (buy at the ask, sell at the bid). "$X of <OTC>" is impossible in either direction;
   switch to `--shares` and say so rather than malforming an order.
 - **Rate limit — agentic managers, NOT an HFT script.** `orders/` burst-limits *fractional*
   orders (~9, then HTTP **429**, ~48s cooldown). A web endpoint will never tolerate hammering.
@@ -1241,9 +1252,9 @@ documented. To extend it safely:
 
 ## MCP Server
 
-38 tools surfaced via Hermes MCP (route/strategy planning + generic executors, PLUS first-class parity tools mirroring the CLI verbs: `robinhood_accounts`, `robinhood_positions`, `robinhood_portfolio` (one-call P&L: day Δ + after-hours Δ, drivers by underlying in dollars), `robinhood_buy`/`robinhood_sell` (the SAME shared order engine as the CLI — dedup, `ref_id`, OTC guard), `robinhood_cancel`, `robinhood_order_status` (UUID→ticker resolved), `robinhood_buying_power`, `robinhood_wheel` (evidence-based Wheel stage + next-leg command), `robinhood_options_holdings`, `robinhood_options_inspect`, `robinhood_settings`, `robinhood_recurring`, `robinhood_quote`, `robinhood_history`, `robinhood_watchlist`, `robinhood_options_enumerate`). Same engine -> same auth, gate, and method-aware routing as the CLI.
+48 tools (live truth: `tools/list`) surfaced via Hermes MCP (route/strategy planning + generic executors, PLUS first-class parity tools mirroring the CLI verbs: `robinhood_accounts`, `robinhood_positions`, `robinhood_portfolio` (one-call P&L: day Δ + after-hours Δ, drivers by underlying in dollars), `robinhood_buy`/`robinhood_sell` (the SAME shared order engine as the CLI — dedup, `ref_id`, OTC guard), `robinhood_cancel`, `robinhood_order_status` (UUID→ticker resolved), `robinhood_buying_power`, `robinhood_wheel` (evidence-based Wheel stage + next-leg command), `robinhood_options_holdings`, `robinhood_options_inspect`, `robinhood_settings`, `robinhood_recurring`, `robinhood_quote`, `robinhood_history`, `robinhood_watchlist`, `robinhood_options_enumerate`). Same engine -> same auth, gate, and method-aware routing as the CLI.
 
-> **Count note:** the *source/dist* registers 38 tools (live truth: `tools/list`). A *running* MCP process started before the
+> **Count note:** the *source/dist* registers 48 tools (live truth: `tools/list`). A *running* MCP process started before the
 > last tool additions will still advertise its old count until reloaded — run `/reload-mcp` (or restart
 > the server) after pulling, then confirm the client's `tools/list` count matches the current build.
 
@@ -1503,4 +1514,4 @@ query params) — use the `positions` command, or just `portfolio`.
 - If you hit a 401: the engine self-heals. If it fails, run `pnpm auth:refresh` manually.
 - The `recurring` subcommand is preferred over raw URL calls for recurring buys — it's idempotent and safer.
 
-<!-- made with love by Zayd Khan / cold -->
+<!-- Zayd Khan // cold // www.zayd.wtf -->

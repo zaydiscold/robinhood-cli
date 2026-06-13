@@ -245,7 +245,7 @@ misuse, not a broken tool — read the actual error first.
 | HTTP **429**, "too many requests for fractional orders" | Burst limit (~9 fractional, ~48s cooldown) | Sleep the *server-directed* seconds, retry the **same `ref_id`**. Don't fixed-sleep, don't give up after one, don't mint a new ref_id (dup risk). Pace ≥2.5s. |
 | **400 "no overnight buying power"** on a GTC buy-to-open | GTC opens gated by overnight BP; this account has ~$0 | Not a bug — the account can't afford it. Either fund/switch account, or use a sell/close (no BP needed), or drop GTC. State the constraint; don't retry the same body. |
 | **400 "price does not satisfy the min tick value"** | Limit below the chain's `cutoff_price` while not on `below_tick` | Read `options/chains/{id}` `min_ticks`; snap the limit to `below_tick` (e.g. $0.05 for ARKG/SPX). Never assume $0.01. |
-| **OTC name rejects `type: market`** / "$X of <ticker>" fails | OTC (`otc_market_tier` set / `fractional_tradability: position_closing_only`, e.g. RNECY) | Switch to whole `--shares` + a marketable **limit at the ask**. Dollar-notional is impossible for OTC; say so, don't re-send the dollar body. |
+| **OTC name rejects `type: market`** / "$X of <ticker>" fails | OTC (`otc_market_tier` set / `fractional_tradability: position_closing_only`, e.g. RNECY) | Switch to whole `--shares` + a marketable **limit at the marketable side** (buy = ask, sell = bid; the engine auto-limits both directions). Dollar-notional is impossible for OTC either way; say so, don't re-send the dollar body. |
 | **400 "app version is missing important stock trading updates"** | Legacy mobile equity body, missing version field | Add `order_form_version: 7` (engine sends the web headers). Don't spin on the vague message. Options orders are exempt. |
 | **`AmbiguousRouteError`** with a candidate list | Your substring matched >1 distinct route (the ~11 `orders/` family is the classic) | Pass the **exact URL** for the route you mean. The error is protecting you from the cancel/destructive route — don't bypass it. |
 | Forced write returns **no match / nothing** | Resolver failed closed: a forced `--method POST/PATCH/...` with no matching write route | The route you want isn't mapped as a write, or the method is wrong. Don't let it degrade to the GET route — capture the real route/body first (§ Research). |
@@ -388,4 +388,4 @@ Ranked by leverage (hardening first, then growth). Each is concrete enough to st
    sanitized, tested behavior to public docs (raw captures stay in gitignored
    `info/`). Never claim working automation for an unconfirmed body.
 
-<!-- made with love by Zayd Khan / cold -->
+<!-- Zayd Khan // cold // www.zayd.wtf -->

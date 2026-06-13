@@ -124,4 +124,4 @@ These are slow, scheduled publications. **Re-pull each cycle and replace this do
 - **Fed leadership transition (Powell→Warsh)** and the exact Apr-2026 inflation print (3.8%) come from secondary search summaries; reconfirm against the primary FOMC/BLS releases before citing as fact in any operator-facing output.
 - Morningstar & Bloomberg aggregator tables returned 403/paywall — re-pull with an authenticated/browser tool next cycle to lock the full per-firm CMA grid.
 
-<!-- made with love by Zayd Khan / cold -->
+<!-- Zayd Khan // cold // www.zayd.wtf -->

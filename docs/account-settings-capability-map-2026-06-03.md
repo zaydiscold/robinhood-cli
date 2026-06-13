@@ -120,4 +120,4 @@ known surfaces, but enable/disable toggles for high-yield cash, stock lending,
 futures trading, event contracts, and switching cash/margin require a fresh
 captured mutation route before they should be wired as live automation.
 
-<!-- made with love by Zayd Khan / cold -->
+<!-- Zayd Khan // cold // www.zayd.wtf -->

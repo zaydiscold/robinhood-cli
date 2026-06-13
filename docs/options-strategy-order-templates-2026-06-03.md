@@ -77,4 +77,4 @@ the 100 backing shares). Conclusion: **all leg topologies are RH-verified**; cre
 additionally require coverage/BP. Reproduce with `scripts/validate-strategies.mjs <SYM> <ACCOUNT>`.
 
 
-<!-- made with love by Zayd Khan / cold -->
+<!-- Zayd Khan // cold // www.zayd.wtf -->

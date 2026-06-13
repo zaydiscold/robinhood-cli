@@ -238,4 +238,4 @@ above (read-only).
    plus completing futures onboarding — explicitly out of scope for the bearer-token
    web/API surface this repo uses.
 
-<!-- made with love by Zayd Khan / cold -->
+<!-- Zayd Khan // cold // www.zayd.wtf -->

@@ -404,4 +404,4 @@ delta/gamma/theta/vega/rho with units, liquidity flags, expiration flags, exact
 - Report net Greeks as current local sensitivities, not predictions.
 - If the user asks for "covered short put", clarify whether they mean cash-secured put or covered put. They are different structures with different collateral and risk.
 
-<!-- made with love by Zayd Khan / cold -->
+<!-- Zayd Khan // cold // www.zayd.wtf -->

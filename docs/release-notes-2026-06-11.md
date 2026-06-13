@@ -91,4 +91,59 @@ both surfaces, so the CLI and MCP can never disagree about how a real-money orde
 - README rewritten to match the current surface (engine parity, `portfolio`, `recipes`, order
   lifecycle, 37 MCP tools); repo title/description shortened to "Robinhood API + MCP + CLI".
 
-<!-- made with love by Zayd Khan / cold -->
+## Safety rails session 2 — evidence in code, panic, pretrade, options close, orders open
+
+Shared-engine pattern throughout (logic in `cli/src/lib.ts`, thin CLI commands + MCP tools on top);
+all write paths keep the existing double gate (`resolveLiveWriteGate` / `gatedBrokerageWrite`).
+
+- **Post-send evidence IN CODE (failure mode #20 encoded):** `verifyOrderEvidence(idOrUrl, kind)`
+  re-reads an order from order history (`orders/{id}/` / `options/orders/{id}/`) and reports
+  `{ confirmed, state, id }`. `placeEquityOrder` now re-reads after every LIVE 2xx send and carries
+  `evidence` in its result; a failed/absent re-read is LOUD (`confirmed:false` + an
+  "EVIDENCE UNCONFIRMED" warning), never silent. New shared **`cancelOrder`** (equity AND options —
+  the CLI `cancel` previously only handled equity) does the same after live cancels, and warns when
+  a 2xx cancel re-reads as anything but cancelled (it may have filled first). CLI `cancel --kind
+  equity|options` and MCP `robinhood_cancel` (new `kind` param) both ride it.
+- **`panic` + `robinhood_panic`:** enumerate every open/pending order across ALL owned accounts
+  (`orders/?is_closed=false` + `options/orders/?states=queued,confirmed,unconfirmed,partially_filled`,
+  live-verified that the comma list filters), display them symbol-resolved in dollars, and cancel
+  each — every cancel individually double-gated through `gatedBrokerageWrite` with logContext
+  "panic cancel-all". DRY-RUN by default (full would-cancel list, sends NOTHING); live needs both
+  gates and evidence-re-reads each cancel. Summary: N found / N cancelled / N failed. One failed
+  cancel never stops the sweep. Live-verified dry-run: "No open/pending orders found across 5
+  account(s)" with zero sends.
+- **`pretrade` + `robinhood_pretrade`:** READ-ONLY PASS/WARN/BLOCK preflight, each check degrading
+  independently: (a) account ownership + capability class (cash/margin/IRA — `accountCapabilities`
+  moved from the CLI into lib so it's shared), (b) `buying_power_breakdown` with the
+  overnight-BP-gates-GTC-option-opens note, (c) options BP / fees / collateral via
+  `readOptionsOrderFlow`, (d) chain `min_ticks` vs `--limit-price` (the ARKG $0.05 trap → BLOCK with
+  the nearest valid price), (e) marketability surfaced as a **manual gated POST command** — pretrade
+  never POSTs anything, (f) OTC/fractional guard, (+) exact-contract existence when
+  strike/expiration/type are given. Summary line: `CLEAR TO BUILD ORDER` or `BLOCKED: <reasons>`.
+  Live-verified against a real cash account (HPE, $0.01-tick chain, fees endpoint 500 degraded to a
+  WARN exactly as designed).
+- **`options close <SYMBOL>` + `robinhood_options_close`:** finds the open position(s) across
+  accounts (aggregate_positions per account), requires `--account/--strike/--expiration`
+  disambiguation when several match (live-verified: two NVDA calls → disambiguation table), then
+  builds the sell-to-close (long) / buy-to-close (short) DRY-RUN body from the position's direction
+  (`closeLegOrientation` — position_effect is ALWAYS close, never infers an open), live bid/ask, a
+  tick-rounded mid limit, and the exact gated send command. Never sends; multi-leg positions are
+  flagged toward `strategy-quote`/`roll-plan` instead of auto-closed.
+- **`orders open` + `robinhood_orders_open`:** panic's read half standalone (shared
+  `listOpenOrders` engine) — all open equity+options orders across accounts, symbol-resolved
+  (instrument UUIDs batch-joined), with age, TIF, limit, and the per-order cancel command.
+- **MCP param consistency:** every write tool now accepts BOTH `liveWrite` (canonical) and `live`
+  (alias) via `resolveLiveFlag`. Touched: `robinhood_buy`, `robinhood_sell`, `robinhood_cancel`
+  (had only `live`); `robinhood_brokerage_execute`, `robinhood_crypto_execute`,
+  `robinhood_settings`, `robinhood_recurring` (had only `liveWrite`). New write tools accept both
+  from day one. Either spelling still requires the env gate.
+- **Route map:** added `GET https://api.robinhood.com/options/orders/{0}/` (sensitive-read) for the
+  options evidence re-read — live-verified 200 against a filled SPXW order (map now 310 routes).
+- **Recipes:** +4 (`panic-cancel-all`, `orders-open`, `pretrade-preflight`, `options-close`) → 31.
+- **Tests:** +39 in `cli/test/evidence-panic-pretrade-close.test.ts` (137 → **176**, all injected
+  deps, no network): evidence confirmed/missing/failed-reread, cancel kinds + gating, panic
+  enumeration/state-filtering/dry-run/live counting, pretrade BLOCK/WARN/degradation, close
+  direction→side/effect mapping + disambiguation + multi-leg flag.
+- **MCP tool count:** 41 → **45** (verified via a live `tools/list` round-trip).
+
+<!-- Zayd Khan // cold // www.zayd.wtf -->

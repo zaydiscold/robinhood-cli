@@ -63,4 +63,4 @@ accepted or filled, because live order submission remains blocked by design
 unless exact approval, `--live-write`, and `ROBINHOOD_ALLOW_LIVE_WRITE=1` are
 all present.
 
-<!-- made with love by Zayd Khan / cold -->
+<!-- Zayd Khan // cold // www.zayd.wtf -->

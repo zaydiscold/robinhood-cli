@@ -67,4 +67,4 @@ node cli/dist/index.js stock profile DRAM --account <ACCOUNT_NUMBER> --json
 The first command is a pure symbol profile. The second adds account-scoped
 buying-power and margin reads.
 
-<!-- made with love by Zayd Khan / cold -->
+<!-- Zayd Khan // cold // www.zayd.wtf -->

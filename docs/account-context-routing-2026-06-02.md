@@ -155,4 +155,4 @@ robinhood-cli api-map account-url options-chain-symbol-builder \
   --symbol XBI
 ```
 
-<!-- made with love by Zayd Khan / cold -->
+<!-- Zayd Khan // cold // www.zayd.wtf -->

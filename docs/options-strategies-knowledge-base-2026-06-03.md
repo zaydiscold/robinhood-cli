@@ -74,4 +74,4 @@ The throughline: every structure slices the same four exposures (delta/gamma/veg
 buys convexity and pays decay; short-premium sells convexity and collects decay; asymmetric structures
 tune *where* on the price line risk/reward live; boxes strip all four to leave a pure interest rate.
 
-<!-- made with love by Zayd Khan / cold -->
+<!-- Zayd Khan // cold // www.zayd.wtf -->

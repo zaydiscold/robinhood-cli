@@ -167,4 +167,4 @@ node scripts/rh-get.mjs "https://api.robinhood.com/marketdata/options/?ids=89a6f
 node scripts/rh-get.mjs "https://api.robinhood.com/options/chains/c277b118-58d9-4060-8dc5-a3b5898955cb/"   # underlying_instruments: [100 shares SPY], underlying_type: equity
 ```
 
-<!-- made with love by Zayd Khan / cold -->
+<!-- Zayd Khan // cold // www.zayd.wtf -->

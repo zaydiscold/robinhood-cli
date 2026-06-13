@@ -93,4 +93,4 @@ and converged on a clear picture. This is the synthesized, prioritized roadmap.
 5. **Reusable security:** extract `capture-web-session`; write the version-gate bypass profile; portable learnings doc.
 6. **Growth:** mission-first README, npm/MCP one-liner, trust-theater demo, sibling-repo brand.
 
-<!-- made with love by Zayd Khan / cold -->
+<!-- Zayd Khan // cold // www.zayd.wtf -->

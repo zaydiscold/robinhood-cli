@@ -1,6 +1,6 @@
 # Trading Log
 
-<!-- made with love by Zayd Khan / cold -->
+<!-- Zayd Khan // cold // www.zayd.wtf -->
 
 ```
 PURPOSE:  An append-only, dated log of what the agent EXECUTES — with the INTENT and the strategy

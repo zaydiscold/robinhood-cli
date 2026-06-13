@@ -41,4 +41,4 @@ Robinhood's official Crypto Trading API is now not just signed by the CLI; it is
 
 Official Crypto routes are live write-capable in the personal CLI. The personal repo has no env gate; use `--dry-run` when testing. The PP-side package keeps writes gated with `ROBINHOOD_PP_ALLOW_WRITES=1`.
 
-<!-- made with love by Zayd Khan / cold -->
+<!-- Zayd Khan // cold // www.zayd.wtf -->

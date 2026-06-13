@@ -6,4 +6,4 @@ The brokerage/account surface in this repository is reverse-engineered from comm
 
 This personal repo includes live brokerage/account execution. The operational boundary is exact-action consent: read routes can be used for account inspection; write-mutate and destructive routes should only be used when the user asked for that specific live mutation.
 
-<!-- made with love by Zayd Khan / cold -->
+<!-- Zayd Khan // cold // www.zayd.wtf -->

@@ -518,4 +518,4 @@ percent ATM; use the live RH Greeks from `marketdata/options/` for any actual de
 > the credit, the change in capital at risk, $\Delta T$ vs. $\Delta T^\star$, and whether the strike move stays inside
 > the extrinsic budget; then do what the operator asks.
 
-<!-- made with love by Zayd Khan / cold -->
+<!-- Zayd Khan // cold // www.zayd.wtf -->

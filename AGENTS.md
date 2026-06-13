@@ -283,15 +283,19 @@ only when `fractional_tradability == "tradable"` and `market_hours: "regular_hou
 }
 ```
 
-**Whole-share / OTC buy** — OTC names (`otc_market_tier` non-empty, or
+**Whole-share / OTC orders (buy AND sell)** — OTC names (`otc_market_tier` non-empty, or
 `fractional_tradability: "position_closing_only"`, e.g. RNECY) **reject `type: market`**
-(*"traded on the over-the-counter market…"*) and can't be bought fractionally. Use a
-**marketable limit at the ask**, whole `quantity` (same envelope, swap the last line):
-`"type": "limit", "price": "<ask>", "quantity": "1"` (drop `dollar_based_amount`).
+(*"traded on the over-the-counter market…"*) and can't trade fractionally — in EITHER
+direction. Both sides are supported as whole shares with an auto **marketable limit at the
+marketable side of the book**: BUY at the **ask**, SELL at the **bid** (same envelope, swap
+the last line): `"type": "limit", "price": "<ask|bid>", "quantity": "1"` (drop
+`dollar_based_amount`). The shared engine (`placeEquityOrder`) does this automatically when
+no explicit limit is given.
 
-**OTC / fractional guard:** before any dollar order, read `fractional_tradability`. If it is
-not `"tradable"`, do NOT send a dollar order — switch to whole-share (limit for OTC). This is
-what stops "$3 of RNECY" from malforming a real order.
+**OTC / fractional guard:** before any dollar order (buy or sell), read
+`fractional_tradability`. If it is not `"tradable"`, do NOT send a dollar order — switch to
+whole-share (auto marketable limit for OTC). This is what stops "$3 of RNECY" from malforming
+a real order in either direction.
 
 **Rate limit (we are agentic managers, NOT an HFT script):** `orders/` burst-limits
 **fractional** orders — ~9 in quick succession, then HTTP **429** (*"Too many requests for
@@ -702,4 +706,4 @@ context/beliefs; the trading log = execution + intent history.
   the *why* so the agent isn't re-deriving strategy state from raw fills.
 - Public + committed → keep entries generic (account masked). **Full rules + format: SKILL.md "Trading log".**
 
-<!-- made with love by Zayd Khan / cold -->
+<!-- Zayd Khan // cold // www.zayd.wtf -->
