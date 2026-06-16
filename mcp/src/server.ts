@@ -24,6 +24,7 @@ import {
   planBrokerageRequest,
   planCryptoRequest,
   resolveLiveWriteGate,
+  riskIsWrite,
   selectRouteByQueryAndMethod,
   brokerageGetJson,
   brokerageGetAllResults,
@@ -42,6 +43,10 @@ import {
   getMarginHealth,
   tryBrokerageGetJson,
   gatedBrokerageWrite,
+  watchlistMutateItems,
+  createWatchlist,
+  getWatchlistItems,
+  buyWatchlistBasket,
   placeEquityOrder,
   getOrderStatus,
   extractOrderId,
@@ -80,6 +85,18 @@ function jsonResponse(value: unknown) {
   return {
     content: [{ type: "text" as const, text: JSON.stringify(value, null, 2) }]
   };
+}
+
+// Make the execution state of a WRITE tool UNMISSABLE. The operator runs live by default, so the
+// dangerous failure is a dry-run response that READS like a success — an agent (or human) sees an
+// order id / 201 / plan and assumes it's done. `executed` + a loud `executionStatus` are hoisted to
+// the TOP of every write response so "nothing was sent" can never be mistaken for "done". Reads never
+// call this. Zayd Khan // cold // www.zayd.wtf
+function writeStatus(result: object, opts: { dryRun: boolean; reason?: string }) {
+  const executionStatus = opts.dryRun
+    ? `⚠️ DRY RUN — NOT EXECUTED. Nothing was sent to Robinhood; no order was placed, changed, or cancelled.${opts.reason ? ` Reason: ${opts.reason}` : ""} To execute for real: pass liveWrite:true AND set ROBINHOOD_ALLOW_LIVE_WRITE=1 in the server's environment (both gates, every call).`
+    : `✅ LIVE — SENT to Robinhood. A 2xx alone is not proof: confirm the order in order history (evidence.confirmed).`;
+  return jsonResponse({ executed: !opts.dryRun, executionStatus, ...result });
 }
 
 function toolAnnotations(readOnly: boolean, risk: RiskLevel) {
@@ -633,12 +650,13 @@ server.registerTool(
   "robinhood_brokerage_execute",
   {
     title: "Robinhood Brokerage Execute",
-    description: "Execute a Robinhood brokerage/account request using caller-owned auth env. Reads run live; writes are dry-run by default and require liveWrite=true (canonical; `live` accepted as alias) plus ROBINHOOD_ALLOW_LIVE_WRITE=1. Pass dryRun=true to force a non-sending plan. After any live write, append a trading-log.md entry (intent + strategy thread); brokerage order history is the only proof an order happened (order-evidence rule).",
+    description: "Execute a Robinhood brokerage/account request using caller-owned auth env. Reads run live; writes are dry-run by default and require liveWrite=true (canonical; `live` accepted as alias) plus ROBINHOOD_ALLOW_LIVE_WRITE=1. Pass dryRun=true to force a non-sending plan. Pass queryParams:[\"key=value\"] to append URL query params AFTER route matching (e.g. queryParams:[\"list_id=<id>\",\"owner_type=custom\"] for discovery/lists/items/) — the route map matches on the path, so this is how you read query-param endpoints without a one-off script. After any live write, append a trading-log.md entry (intent + strategy thread); brokerage order history is the only proof an order happened (order-evidence rule).",
     annotations: toolAnnotations(false, "write-or-sensitive"),
     inputSchema: z.object({
       query: z.string(),
       method: z.string().optional(),
       params: z.array(z.string()).default([]),
+      queryParams: z.array(z.string()).default([]),
       body: z.unknown().optional(),
       dryRun: z.boolean().default(false),
       liveWrite: z.boolean().optional(),
@@ -646,7 +664,7 @@ server.registerTool(
       fullBody: z.boolean().default(false)
     })
   },
-  async ({ query, method, params, body, dryRun, liveWrite: liveWriteParam, live, fullBody }) => {
+  async ({ query, method, params, queryParams, body, dryRun, liveWrite: liveWriteParam, live, fullBody }) => {
     const liveWrite = resolveLiveFlag(liveWriteParam, live);
     const matches = filterBrokerageRoutes(loadBrokerageRoutes(), { query });
     const route = selectRouteByQueryAndMethod(matches, query, method);
@@ -659,11 +677,15 @@ server.registerTool(
       route,
       method,
       params: parseParamAssignments(params),
+      query: parseParamAssignments(queryParams),
       body,
       dryRun: effectiveDryRun
     });
     const result = await executeBrokerageRequest(plan, { body, dryRun: effectiveDryRun, fullBody });
-    return jsonResponse(gate.forcedDryRun ? { ...result, liveWriteBlocked: gate.reason } : result);
+    const m = method?.toUpperCase();
+    const isWrite = riskIsWrite(route.risk) || (m !== undefined && m !== "GET" && m !== "HEAD");
+    if (isWrite) return writeStatus(result as object, { dryRun: effectiveDryRun, reason: gate.forcedDryRun ? gate.reason : undefined });
+    return jsonResponse(result);
   }
 );
 
@@ -778,7 +800,10 @@ server.registerTool(
       dryRun: effectiveDryRun
     });
     const result = await executeCryptoRequest(plan, { body, dryRun: effectiveDryRun, fullBody });
-    return jsonResponse(gate.forcedDryRun ? { ...result, liveWriteBlocked: gate.reason } : result);
+    const m = method?.toUpperCase();
+    const isWrite = riskIsWrite(route.risk) || (m !== undefined && m !== "GET" && m !== "HEAD");
+    if (isWrite) return writeStatus(result as object, { dryRun: effectiveDryRun, reason: gate.forcedDryRun ? gate.reason : undefined });
+    return jsonResponse(result);
   }
 );
 
@@ -920,7 +945,7 @@ server.registerTool(
         liveWrite: resolveLiveFlag(liveWrite, live), force: Boolean(force)
       });
       const { result: _raw, ...summary } = r;
-      return jsonResponse(summary);
+      return writeStatus(summary, { dryRun: summary.dryRun });
     } catch (e: any) {
       return jsonResponse({ error: e.message });
     }
@@ -950,7 +975,7 @@ server.registerTool(
         liveWrite: resolveLiveFlag(liveWrite, live), force: Boolean(force)
       });
       const { result: _raw, ...summary } = r;
-      return jsonResponse(summary);
+      return writeStatus(summary, { dryRun: summary.dryRun });
     } catch (e: any) { return jsonResponse({ error: e.message }); }
   }
 );
@@ -974,7 +999,7 @@ server.registerTool(
     try {
       // Shared engine (cancelOrder in lib.ts) — same path as the CLI `cancel` command and `panic`.
       const r = await cancelOrder({ idOrUrl: order_id, kind, liveWrite: resolveLiveFlag(liveWrite, live) });
-      return jsonResponse(r);
+      return writeStatus(r, { dryRun: r.dryRun, reason: (r as any).gateReason });
     } catch (e: any) { return jsonResponse({ error: e.message }); }
   }
 );
@@ -1010,8 +1035,10 @@ server.registerTool(
     annotations: toolAnnotations(false, "destructive")
   },
   async ({ account_number, liveWrite, live }) => {
-    try { return jsonResponse(await panicCancelAll({ accountNumber: account_number, liveWrite: resolveLiveFlag(liveWrite, live) })); }
-    catch (e: any) { return jsonResponse({ error: e.message }); }
+    try {
+      const r = await panicCancelAll({ accountNumber: account_number, liveWrite: resolveLiveFlag(liveWrite, live) });
+      return writeStatus(r, { dryRun: r.dryRun });
+    } catch (e: any) { return jsonResponse({ error: e.message }); }
   }
 );
 
@@ -1211,7 +1238,7 @@ server.registerTool(
       url = "https://api.robinhood.com/accounts/{account_number}/sweep_enrollment_state/"; method = "POST"; body = { sweep_enrollment_action: "unenroll" };
     }
     const r = await gatedBrokerageWrite({ url, method, params, body, dryRun, liveWrite });
-    return jsonResponse(r.dryRun && r.reason ? { ...r, liveWriteBlocked: r.reason } : r);
+    return writeStatus(r, { dryRun: r.dryRun, reason: r.reason });
   }
 );
 
@@ -1248,7 +1275,7 @@ server.registerTool(
       if (!inst) throw new Error(`No instrument for ${symbol}.`);
       const body = { account_number, amount: { amount: Number(amount).toFixed(2), currency_code: "USD" }, frequency: frequency ?? "weekly", investment_asset: { asset_id: inst.id, asset_symbol: inst.symbol, asset_type: "equity" }, source_of_funds: "buying_power", start_date: start_date ?? new Date(Date.now() + 86400000).toISOString().slice(0, 10), ref_id: randomUUID() };
       const r = await gatedBrokerageWrite({ url: LIST, method: "POST", body, dryRun, liveWrite });
-      return jsonResponse(r.dryRun && r.reason ? { ...r, liveWriteBlocked: r.reason } : r);
+      return writeStatus(r, { dryRun: r.dryRun, reason: r.reason });
     }
     if (!id) throw new Error(`${action} needs a schedule id.`);
     let body: unknown;
@@ -1260,7 +1287,7 @@ server.registerTool(
       body = b;
     } else { body = { state: "deleted" }; } // end
     const r = await gatedBrokerageWrite({ url: ITEM, method: "PATCH", params: { "0": id }, body, dryRun, liveWrite });
-    return jsonResponse(r.dryRun && r.reason ? { ...r, liveWriteBlocked: r.reason } : r);
+    return writeStatus(r, { dryRun: r.dryRun, reason: r.reason });
   }
 );
 
@@ -1312,6 +1339,117 @@ server.registerTool(
     annotations: toolAnnotations(true, "read")
   },
   async () => jsonResponse(await brokerageGetJson("https://api.robinhood.com/discovery/lists/?owner_type=custom", {}, { owner_type: "custom" }))
+);
+
+server.registerTool(
+  "robinhood_watchlist_add",
+  {
+    title: "Robinhood Watchlist — Add",
+    description: "Add tickers to a custom watchlist (resolved by name or id). Watchlists are user-level, not account-scoped. Reads resolve the list + each symbol's instrument UUID; the write is dry-run unless liveWrite=true (canonical; `live` accepted) AND ROBINHOOD_ALLOW_LIVE_WRITE=1.",
+    annotations: toolAnnotations(false, "write-mutate"),
+    inputSchema: z.object({
+      list: z.string(),
+      symbols: z.array(z.string()).min(1),
+      dryRun: z.boolean().default(false),
+      liveWrite: z.boolean().optional(),
+      live: z.boolean().optional()
+    })
+  },
+  async ({ list, symbols, dryRun, liveWrite: liveWriteParam, live }) => {
+    const liveWrite = resolveLiveFlag(liveWriteParam, live);
+    const out = await watchlistMutateItems({ list, symbols, operation: "create", dryRun, liveWrite });
+    return writeStatus(
+      { list: out.list, operation: "add", items: out.items, status: out.result.status, body: out.result.body },
+      { dryRun: out.result.dryRun, reason: out.result.reason }
+    );
+  }
+);
+
+server.registerTool(
+  "robinhood_watchlist_remove",
+  {
+    title: "Robinhood Watchlist — Remove",
+    description: "Remove tickers from a custom watchlist (resolved by name or id). Dry-run unless liveWrite=true (canonical; `live` accepted) AND ROBINHOOD_ALLOW_LIVE_WRITE=1.",
+    annotations: toolAnnotations(false, "write-mutate"),
+    inputSchema: z.object({
+      list: z.string(),
+      symbols: z.array(z.string()).min(1),
+      dryRun: z.boolean().default(false),
+      liveWrite: z.boolean().optional(),
+      live: z.boolean().optional()
+    })
+  },
+  async ({ list, symbols, dryRun, liveWrite: liveWriteParam, live }) => {
+    const liveWrite = resolveLiveFlag(liveWriteParam, live);
+    const out = await watchlistMutateItems({ list, symbols, operation: "delete", dryRun, liveWrite });
+    return writeStatus(
+      { list: out.list, operation: "remove", items: out.items, status: out.result.status, body: out.result.body },
+      { dryRun: out.result.dryRun, reason: out.result.reason }
+    );
+  }
+);
+
+server.registerTool(
+  "robinhood_watchlist_create",
+  {
+    title: "Robinhood Watchlist — Create",
+    description: "Create a new custom watchlist (display_name, optional icon emoji). Dry-run unless liveWrite=true (canonical; `live` accepted) AND ROBINHOOD_ALLOW_LIVE_WRITE=1.",
+    annotations: toolAnnotations(false, "write-mutate"),
+    inputSchema: z.object({
+      name: z.string(),
+      emoji: z.string().optional(),
+      dryRun: z.boolean().default(false),
+      liveWrite: z.boolean().optional(),
+      live: z.boolean().optional()
+    })
+  },
+  async ({ name, emoji, dryRun, liveWrite: liveWriteParam, live }) => {
+    const liveWrite = resolveLiveFlag(liveWriteParam, live);
+    const out = await createWatchlist({ displayName: name, iconEmoji: emoji, dryRun, liveWrite });
+    return writeStatus(
+      { displayName: name, status: out.result.status, body: out.result.body },
+      { dryRun: out.result.dryRun, reason: out.result.reason }
+    );
+  }
+);
+
+server.registerTool(
+  "robinhood_watchlist_items",
+  {
+    title: "Robinhood Watchlist — Items",
+    description: "Read a custom watchlist's tickers (resolved by name or id) live — each item's symbol, price, object_type, and an equity-buyable flag (active + US-tradable instrument). The READ half of operating on a watchlist; pair with robinhood_watchlist_buy. Live read; no gate.",
+    inputSchema: z.object({ list: z.string() }),
+    annotations: toolAnnotations(true, "read")
+  },
+  async ({ list }) => {
+    const { list: wl, items } = await getWatchlistItems(list);
+    return jsonResponse({ list: wl, count: items.length, tradable: items.filter((i) => i.tradable).length, items });
+  }
+);
+
+server.registerTool(
+  "robinhood_watchlist_buy",
+  {
+    title: "Robinhood Watchlist — Basket Buy",
+    description: "Buy $<amount> of EACH equity-buyable ticker in a custom watchlist (BP-aware basket; the EXECUTION half of operating on a watchlist). Loops the SAME shared placeEquityOrder engine per ticker — OTC/fractional guard, pending dedup, ref_id idempotency, the after-hours fractional pre-flight guard, trade-log + order-history evidence — and reads the account's buying power so it only attempts what fits ($amount each), skipping the rest with reasons rather than hammering doomed orders. Dry-run unless liveWrite=true (canonical; `live` accepted) AND ROBINHOOD_ALLOW_LIVE_WRITE=1.",
+    annotations: toolAnnotations(false, "write-mutate"),
+    inputSchema: z.object({
+      list: z.string(),
+      account_number: z.string(),
+      amount: z.number().positive().default(1),
+      limit: z.number().int().positive().optional(),
+      delayMs: z.number().int().nonnegative().optional(),
+      force: z.boolean().default(false),
+      dryRun: z.boolean().default(false),
+      liveWrite: z.boolean().optional(),
+      live: z.boolean().optional()
+    })
+  },
+  async ({ list, account_number, amount, limit, delayMs, force, dryRun, liveWrite: liveWriteParam, live }) => {
+    const liveWrite = resolveLiveFlag(liveWriteParam, live);
+    const out = await buyWatchlistBasket({ list, amount, accountNumber: account_number, limit, delayMs, force, dryRun, liveWrite });
+    return writeStatus(out, { dryRun: out.dryRun });
+  }
 );
 
 server.registerTool(
@@ -1508,6 +1646,20 @@ server.registerTool(
 );
 
 // Zayd Khan // cold // www.zayd.wtf
+
+// Live-write discoverability (the silent-dry-run trap): writes need ROBINHOOD_ALLOW_LIVE_WRITE=1 in THIS
+// server's environment (the second gate). If it's unset, every write tool dry-runs no matter what the
+// caller passes — and that used to fail silently (a re-registered MCP without the env looked healthy but
+// could never trade). Announce it loudly at startup so the gap is visible, not discovered mid-trade.
+if (process.env.ROBINHOOD_ALLOW_LIVE_WRITE !== "1") {
+  process.stderr.write(
+    "⚠️  robinhood-cli MCP: LIVE WRITES DISABLED — ROBINHOOD_ALLOW_LIVE_WRITE is not \"1\" in this server's " +
+    "environment, so EVERY write tool will dry-run regardless of liveWrite:true (the env is the second gate). " +
+    "Reads work normally. To enable real orders, re-register with the env gate and reload, e.g.:\n" +
+    "    claude mcp add robinhood-cli -s user -e ROBINHOOD_ALLOW_LIVE_WRITE=1 -- node <repo>/mcp/dist/server.js\n" +
+    "  then /reload-mcp (or restart the client).\n"
+  );
+}
 
 const transport = new StdioServerTransport();
 await server.connect(transport);

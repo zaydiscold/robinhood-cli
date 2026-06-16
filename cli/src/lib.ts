@@ -1478,12 +1478,16 @@ export function planBrokerageRequest(input: {
   route: BrokerageRoute;
   method?: string;
   params?: Record<string, string>;
+  /** Arbitrary ?key=value query params appended AFTER route matching (parity with planCryptoRequest).
+   *  The route map matches on the path, so query params are applied here — this is what lets a caller
+   *  read e.g. discovery/lists/items/?list_id=... through `brokerage execute` instead of a one-off script. */
+  query?: Record<string, string>;
   body?: unknown;
   dryRun?: boolean;
 }): PlannedBrokerageRequest {
   const params = input.params ?? {};
   const missingParams: string[] = [];
-  const url = input.route.url.replace(/\{([^}]+)\}/g, (_match, name: string) => {
+  let url = input.route.url.replace(/\{([^}]+)\}/g, (_match, name: string) => {
     // Alias-aware: a route's {account_number} token is satisfied by a legacy --param account=/num= and
     // vice-versa, so the standardized map and pre-rename callers both resolve.
     const value = resolveParamValue(params, name);
@@ -1493,6 +1497,11 @@ export function planBrokerageRequest(input: {
     }
     return encodeURIComponent(value);
   });
+  if (input.query && Object.keys(input.query).length > 0) {
+    const parsed = new URL(url);
+    for (const [k, v] of Object.entries(input.query)) parsed.searchParams.set(k, v);
+    url = parsed.toString();
+  }
   const method = (input.method ?? inferBrokerageMethod(input.route)).toUpperCase();
   const warnings = riskWarnings(input.route.risk);
   const mutatesAccount = riskMutatesAccount(input.route.risk);
@@ -2478,6 +2487,312 @@ export async function logTrade(entry: Record<string, unknown>) {
   } catch { /* best-effort */ }
 }
 
+// ───────────────────────── Watchlist writes (shared CLI + MCP) ─────────────────────────
+// Robinhood custom watchlists ("Lists") are USER-level, NOT account-scoped — one set of lists per
+// login, shown across every account. The write surface is discovery/lists/* (captured + verified live
+// 2026-06-14 — the REAL endpoint is discovery/lists/items/, NOT the midlands/lists/items/ the route map
+// once assumed):
+//   add/remove items : POST   discovery/lists/items/   body { "<list_id>": [ {object_id, object_type, operation} ] }
+//   create a list    : POST   discovery/lists/         body { display_name, icon_emoji? }  (201)
+//   delete a list    : DELETE discovery/lists/{id}/    (204)
+// object_id is the instrument UUID (resolved from a ticker via instruments/?symbol=), never the symbol.
+// operation: "create" = add, "delete" = remove. Both ride the same items endpoint. As with every write
+// here, these go through gatedBrokerageWrite — dry-run unless BOTH gates (liveWrite + env) are set.
+
+export const DISCOVERY_LISTS_URL = "https://api.robinhood.com/discovery/lists/";
+export const DISCOVERY_LISTS_ITEMS_URL = "https://api.robinhood.com/discovery/lists/items/";
+
+/** Resolve an equity ticker to its Robinhood instrument UUID (instruments/?symbol=). */
+export async function resolveInstrumentId(
+  symbol: string,
+  deps: { getJson?: typeof brokerageGetJson } = {}
+): Promise<string> {
+  const getJson = deps.getJson ?? brokerageGetJson;
+  const sym = symbol.trim().toUpperCase();
+  const inst = (await getJson("https://api.robinhood.com/instruments/?symbol={symbol}", { symbol: sym })).results?.[0];
+  if (!inst?.id) throw new Error(`Symbol ${sym} not found (instruments/?symbol= returned no match).`);
+  return inst.id as string;
+}
+
+export interface WatchlistRef {
+  id: string;
+  display_name: string;
+  allowed_object_types: string[];
+}
+
+/** Resolve a custom watchlist by id or (case-insensitive) display_name. Reads owner_type=custom only. */
+export async function resolveWatchlist(
+  nameOrId: string,
+  deps: { getJson?: typeof brokerageGetJson } = {}
+): Promise<WatchlistRef> {
+  const getJson = deps.getJson ?? brokerageGetJson;
+  const data = await getJson(DISCOVERY_LISTS_URL, {}, { owner_type: "custom" });
+  const lists: any[] = Array.isArray(data?.results) ? data.results : [];
+  const q = nameOrId.trim();
+  const match =
+    lists.find((l) => l.id === q) ??
+    lists.find((l) => String(l.display_name ?? "").toLowerCase() === q.toLowerCase());
+  if (!match) {
+    const names = lists.map((l) => l.display_name).filter(Boolean).join(", ") || "(none)";
+    throw new Error(`No custom watchlist matches "${nameOrId}". Existing custom lists: ${names}.`);
+  }
+  return { id: match.id, display_name: match.display_name, allowed_object_types: match.allowed_object_types ?? [] };
+}
+
+export interface WatchlistMutateInput {
+  /** List name or id. */
+  list: string;
+  symbols: string[];
+  /** "create" = add, "delete" = remove. */
+  operation: "create" | "delete";
+  /** Robinhood object type; defaults to "instrument" (equities). */
+  objectType?: string;
+  dryRun?: boolean;
+  liveWrite?: boolean;
+}
+
+export interface WatchlistMutateDeps {
+  getJson?: typeof brokerageGetJson;
+  write?: typeof gatedBrokerageWrite;
+  resolveInstrument?: (symbol: string) => Promise<string>;
+}
+
+/**
+ * Add or remove tickers in a custom watchlist. Resolves the list (by name/id) and each ticker (to an
+ * instrument UUID), builds the list-keyed batch body, and sends it through the double-gated write path.
+ */
+export async function watchlistMutateItems(input: WatchlistMutateInput, deps: WatchlistMutateDeps = {}) {
+  const getJson = deps.getJson ?? brokerageGetJson;
+  const write = deps.write ?? gatedBrokerageWrite;
+  const objectType = input.objectType ?? "instrument";
+  const resolveInstrument = deps.resolveInstrument ?? ((s: string) => resolveInstrumentId(s, { getJson }));
+  const symbols = input.symbols.map((s) => s.trim().toUpperCase()).filter(Boolean);
+  if (symbols.length === 0) throw new Error("No symbols given.");
+  const wl = await resolveWatchlist(input.list, { getJson });
+
+  const resolved: { symbol: string; object_id: string }[] = [];
+  for (const sym of symbols) {
+    const object_id = objectType === "instrument" ? await resolveInstrument(sym) : sym;
+    resolved.push({ symbol: sym, object_id });
+  }
+  const body = {
+    [wl.id]: resolved.map((r) => ({ object_id: r.object_id, object_type: objectType, operation: input.operation }))
+  };
+  const verb = input.operation === "create" ? "add" : "remove";
+  const result = await write({
+    url: DISCOVERY_LISTS_ITEMS_URL,
+    method: "POST",
+    body,
+    dryRun: input.dryRun,
+    liveWrite: input.liveWrite,
+    logContext: `watchlist ${verb}: ${symbols.join(",")} ${verb === "add" ? "->" : "<-"} ${wl.display_name}`
+  });
+  return { list: wl, operation: input.operation, items: resolved, body, result };
+}
+
+/** Create a new custom watchlist (POST discovery/lists/). Double-gated. */
+export async function createWatchlist(
+  input: { displayName: string; iconEmoji?: string; dryRun?: boolean; liveWrite?: boolean },
+  deps: { write?: typeof gatedBrokerageWrite } = {}
+) {
+  const write = deps.write ?? gatedBrokerageWrite;
+  const body: Record<string, unknown> = { display_name: input.displayName };
+  if (input.iconEmoji) body.icon_emoji = input.iconEmoji;
+  const result = await write({
+    url: DISCOVERY_LISTS_URL,
+    method: "POST",
+    body,
+    dryRun: input.dryRun,
+    liveWrite: input.liveWrite,
+    logContext: `watchlist create: ${input.displayName}`
+  });
+  return { displayName: input.displayName, body, result };
+}
+
+/** Delete a custom watchlist by id (DELETE discovery/lists/{id}/). Double-gated; irreversible. */
+export async function deleteWatchlist(
+  input: { id: string; dryRun?: boolean; liveWrite?: boolean },
+  deps: { write?: typeof gatedBrokerageWrite } = {}
+) {
+  const write = deps.write ?? gatedBrokerageWrite;
+  const result = await write({
+    url: "https://api.robinhood.com/discovery/lists/{id}/",
+    method: "DELETE",
+    params: { id: input.id },
+    dryRun: input.dryRun,
+    liveWrite: input.liveWrite,
+    logContext: `watchlist delete: ${input.id}`
+  });
+  return { id: input.id, result };
+}
+
+export interface WatchlistItem {
+  symbol: string | null;
+  name: string | null;
+  object_type: string;
+  object_id: string | null;
+  us_tradability: string | null;
+  state: string | null;
+  /** True only for an active, US-tradable EQUITY instrument — i.e. something a $X basket buy can hit.
+   *  Futures/index/currency_pair entries (allowed on a list) are NOT equity-buyable and resolve false. */
+  tradable: boolean;
+  price: number | null;
+}
+
+/**
+ * Read a custom watchlist's ITEMS resolved to tickers. The list-metadata read (`watchlist list`) returns
+ * sizes only; the items live at discovery/lists/items/?list_id=&owner_type=custom and come back already
+ * carrying symbol + tradability + a live price. This is the read half of "operate on a watchlist" — no
+ * one-off script required. Reads are live and free (no gate).
+ */
+export async function getWatchlistItems(
+  nameOrId: string,
+  deps: { getJson?: typeof brokerageGetJson } = {}
+): Promise<{ list: WatchlistRef; items: WatchlistItem[] }> {
+  const getJson = deps.getJson ?? brokerageGetJson;
+  const wl = await resolveWatchlist(nameOrId, { getJson });
+  const data = await getJson(DISCOVERY_LISTS_ITEMS_URL, {}, { list_id: wl.id, owner_type: "custom" });
+  const results: any[] = Array.isArray(data?.results) ? data.results : [];
+  const items: WatchlistItem[] = results.map((r) => {
+    const object_type = String(r.object_type ?? "instrument");
+    return {
+      symbol: r.symbol ?? r?.item?.symbol ?? null,
+      name: r.name ?? null,
+      object_type,
+      object_id: r.object_id ?? r.id ?? null,
+      us_tradability: r.us_tradability ?? null,
+      state: r.state ?? null,
+      tradable: object_type === "instrument" && r.us_tradability === "tradable" && r.state === "active" && Boolean(r.symbol),
+      price: r.price != null && Number.isFinite(Number(r.price)) ? Number(r.price) : null
+    };
+  });
+  return { list: wl, items };
+}
+
+export interface WatchlistBasketBuyInput {
+  /** List name or id. */
+  list: string;
+  /** Dollars per ticker (Robinhood minimum is $1.00). */
+  amount: number;
+  accountNumber: string;
+  dryRun?: boolean;
+  liveWrite?: boolean;
+  /** Skip per-order dedup AND the after-hours fractional pre-flight guard. */
+  force?: boolean;
+  /** Cap the number of tickers attempted (after tradability + BP filtering). */
+  limit?: number;
+  /** Pace between LIVE sends to respect Robinhood's fractional burst limit (~9 then 429). Default 2500ms. */
+  delayMs?: number;
+}
+
+export interface WatchlistBasketLeg {
+  symbol: string;
+  status: "placed" | "queued" | "dry-run" | "skipped" | "failed" | "blocked";
+  reason?: string;
+  shares?: number;
+  estimatedTotal?: number;
+  orderId?: string | null;
+  evidenceConfirmed?: boolean | null;
+  sessionWarning?: string;
+}
+
+export interface WatchlistBasketBuyResult {
+  list: WatchlistRef;
+  account: string;
+  amountPerTicker: number;
+  buyingPower?: number;
+  dryRun: boolean;
+  counts: { items: number; tradable: number; attempted: number; placed: number; skipped: number; failed: number; blocked: number };
+  legs: WatchlistBasketLeg[];
+}
+
+/**
+ * Buy $amount of EACH tradable item in a custom watchlist — the "operate on a watchlist" execution half.
+ * Thin loop over the shared `placeEquityOrder` engine, so every per-ticker order inherits the OTC/
+ * fractional guard, dedup, ref_id idempotency, the after-hours pre-flight guard, trade-log + evidence,
+ * AND the double write-gate (dry-run unless liveWrite + ROBINHOOD_ALLOW_LIVE_WRITE=1). BP-aware: reads
+ * the account's buying power and only attempts what fits ($amount each), so an underfunded basket places
+ * the affordable prefix and reports the rest as skipped rather than hammering doomed orders.
+ */
+export async function buyWatchlistBasket(
+  input: WatchlistBasketBuyInput,
+  deps: { getJson?: typeof brokerageGetJson; placeOrder?: typeof placeEquityOrder; sleep?: (ms: number) => Promise<void> } = {}
+): Promise<WatchlistBasketBuyResult> {
+  const getJson = deps.getJson ?? brokerageGetJson;
+  const placeOrder = deps.placeOrder ?? placeEquityOrder;
+  const sleep = deps.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
+  const amount = Number(input.amount);
+  if (!Number.isFinite(amount) || amount <= 0) throw new Error("amount must be a positive dollar value (Robinhood minimum is $1.00).");
+  const delayMs = input.delayMs ?? 2500;
+  const liveWrite = !input.dryRun && !!input.liveWrite;
+
+  const { list, items } = await getWatchlistItems(input.list, { getJson });
+  const tradable = items.filter((i) => i.tradable && i.symbol);
+  const legs: WatchlistBasketLeg[] = [];
+
+  // Non-equity / non-tradable members are skipped loudly (futures/index/currency_pair, halted, etc.).
+  for (const i of items.filter((x) => !x.tradable)) {
+    legs.push({ symbol: i.symbol ?? i.object_id ?? "?", status: "skipped", reason: `not equity-buyable (object_type=${i.object_type}, us_tradability=${i.us_tradability ?? "?"}, state=${i.state ?? "?"})` });
+  }
+
+  // BP-aware sizing: read buying power once and only attempt what fits.
+  let buyingPower: number | undefined;
+  try {
+    const bp = await getJson("https://api.robinhood.com/accounts/{num}/buying_power_breakdown", { num: input.accountNumber });
+    const v = Number(bp?.buying_power);
+    if (Number.isFinite(v)) buyingPower = v;
+  } catch { /* best-effort: if BP read fails, attempt all and let per-order rejection report */ }
+
+  let candidates = tradable;
+  if (input.limit && input.limit > 0) candidates = candidates.slice(0, input.limit);
+  let affordable = candidates;
+  if (buyingPower !== undefined) {
+    const maxN = Math.floor(buyingPower / amount);
+    if (candidates.length > maxN) {
+      affordable = candidates.slice(0, maxN);
+      for (const i of candidates.slice(maxN)) {
+        legs.push({ symbol: i.symbol as string, status: "skipped", reason: `insufficient buying power — basket of ${candidates.length}×$${amount.toFixed(2)}=$${(candidates.length * amount).toFixed(2)} exceeds BP $${buyingPower.toFixed(2)}; placed the first ${maxN}` });
+      }
+    }
+  }
+
+  let placed = 0;
+  for (let idx = 0; idx < affordable.length; idx++) {
+    const sym = affordable[idx].symbol as string;
+    let res: EquityOrderResult;
+    try {
+      res = await placeOrder({ symbol: sym, accountNumber: input.accountNumber, side: "buy", amount, liveWrite, force: input.force });
+    } catch (e: any) {
+      const msg = String(e?.message ?? e);
+      const nonBuyable = /fractional|otc/i.test(msg);
+      legs.push({ symbol: sym, status: nonBuyable ? "skipped" : "failed", reason: msg });
+      continue;
+    }
+    if (res.preflightBlocked) {
+      legs.push({ symbol: sym, status: "blocked", reason: res.sessionWarning, sessionWarning: res.sessionWarning });
+    } else if (res.dryRun) {
+      legs.push({ symbol: sym, status: "dry-run", shares: res.shares, estimatedTotal: res.estimatedTotal, sessionWarning: res.sessionWarning });
+    } else if (res.evidence?.confirmed === true) {
+      legs.push({ symbol: sym, status: "placed", shares: res.shares, estimatedTotal: res.estimatedTotal, orderId: res.orderId, evidenceConfirmed: true, sessionWarning: res.sessionWarning });
+      placed++;
+    } else {
+      legs.push({ symbol: sym, status: "failed", reason: res.evidence?.warning ?? res.sessionWarning ?? `live send returned ${res.httpStatus} — unconfirmed`, orderId: res.orderId, evidenceConfirmed: res.evidence?.confirmed ?? null, sessionWarning: res.sessionWarning });
+    }
+    if (liveWrite && delayMs > 0 && idx < affordable.length - 1) await sleep(delayMs);
+  }
+
+  return {
+    list, account: input.accountNumber, amountPerTicker: amount, buyingPower, dryRun: !liveWrite,
+    counts: {
+      items: items.length, tradable: tradable.length, attempted: affordable.length, placed,
+      skipped: legs.filter((l) => l.status === "skipped").length,
+      failed: legs.filter((l) => l.status === "failed").length,
+      blocked: legs.filter((l) => l.status === "blocked").length
+    },
+    legs
+  };
+}
+
 // ───────────────────────── Equity order engine (shared CLI + MCP) ─────────────────────────
 // The order-construction path is the dangerous one to duplicate (alignment invariant): the CLI
 // `buy`/`sell` commands and the MCP `robinhood_buy`/`robinhood_sell` tools both call
@@ -2506,6 +2821,71 @@ export function filterRecentPending(orders: any[], side: "buy" | "sell", nowMs: 
   });
 }
 
+// ── Market-session awareness ────────────────────────────────────────────────────────────────────
+// The order body's `market_hours` and the "will it fill now or queue?" question both depend on the
+// CURRENT US-equity session. We derive it from Robinhood's OWN market-hours endpoint (holiday- and
+// half-day-aware — never a hardcoded 9:30–16:00 clock), with an ET-clock fallback only if that read
+// fails. Zayd Khan // cold // www.zayd.wtf
+export type MarketSession = "pre_market" | "regular" | "after_hours" | "closed";
+
+export interface MarketSessionInfo {
+  session: MarketSession;
+  /** Is today a trading day at all (false on weekends/holidays). */
+  isTradingDay: boolean;
+  /** True when authoritative RH hours were used; false when the ET-clock fallback was. */
+  authoritative: boolean;
+}
+
+/** ET calendar date `YYYY-MM-DD` for an epoch ms — DST-correct via Intl (en-CA yields ISO order). */
+export function etDateString(nowMs: number): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/New_York", year: "numeric", month: "2-digit", day: "2-digit"
+  }).format(new Date(nowMs));
+}
+
+/** ET-clock session heuristic — the fallback ONLY (no holiday/half-day awareness). */
+export function etClockSession(nowMs: number): MarketSession {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York", weekday: "short", hour: "2-digit", minute: "2-digit", hourCycle: "h23"
+  }).formatToParts(new Date(nowMs));
+  const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "";
+  const wd = get("weekday");
+  if (wd === "Sat" || wd === "Sun") return "closed";
+  const mins = (Number(get("hour")) % 24) * 60 + Number(get("minute"));
+  if (mins >= 9 * 60 + 30 && mins < 16 * 60) return "regular";
+  if (mins >= 4 * 60 && mins < 9 * 60 + 30) return "pre_market";
+  if (mins >= 16 * 60 && mins < 20 * 60) return "after_hours";
+  return "closed";
+}
+
+/**
+ * Classify the current US-equity session from Robinhood's authoritative hours endpoint.
+ * Best-effort: any read failure falls back to the ET clock (still useful, just holiday-blind).
+ */
+export async function computeMarketSession(
+  deps: { getJson?: typeof brokerageGetJson; now?: () => number } = {}
+): Promise<MarketSessionInfo> {
+  const getJson = deps.getJson ?? brokerageGetJson;
+  const nowMs = (deps.now ?? Date.now)();
+  let hours: any;
+  try {
+    hours = await getJson("https://api.robinhood.com/markets/{market}/hours/{date}/", {
+      market: "XNYS", date: etDateString(nowMs)
+    });
+  } catch {
+    return { session: etClockSession(nowMs), isTradingDay: etClockSession(nowMs) !== "closed", authoritative: false };
+  }
+  if (!hours?.is_open) return { session: "closed", isTradingDay: false, authoritative: true };
+  const t = (s?: string) => (s ? Date.parse(s) : NaN);
+  const open = t(hours.opens_at), close = t(hours.closes_at);
+  const extOpen = t(hours.extended_opens_at), extClose = t(hours.extended_closes_at);
+  let session: MarketSession = "closed";
+  if (Number.isFinite(open) && Number.isFinite(close) && nowMs >= open && nowMs < close) session = "regular";
+  else if (Number.isFinite(extOpen) && Number.isFinite(open) && nowMs >= extOpen && nowMs < open) session = "pre_market";
+  else if (Number.isFinite(close) && Number.isFinite(extClose) && nowMs >= close && nowMs < extClose) session = "after_hours";
+  return { session, isTradingDay: true, authoritative: true };
+}
+
 export interface EquityOrderInput {
   symbol: string;
   accountNumber: string;
@@ -2527,6 +2907,8 @@ export interface EquityOrderDeps {
   write?: typeof gatedBrokerageWrite;
   log?: typeof logTrade;
   now?: () => number;
+  /** Injectable session detector (tests pass a fake; default reads RH's live hours). */
+  getMarketSession?: typeof computeMarketSession;
 }
 
 export interface EquityOrderResult {
@@ -2539,13 +2921,22 @@ export interface EquityOrderResult {
   type: "market" | "limit";
   /** True when an OTC order with no explicit limit was auto-limited at the marketable side (buy=ask, sell=bid). */
   otcAutoLimit: boolean;
+  /** True when the send used the native `dollar_based_amount` fractional body (dollar-notional market order on a fractional-tradable name) rather than a computed quantity. */
+  dollarBased: boolean;
+  /** Detected US-equity session at send time (`regular`/`pre_market`/`after_hours`/`closed`); undefined if detection was skipped/failed. */
+  session?: MarketSession;
+  /** Set when the order will QUEUE rather than fill now (e.g. a fractional/market order placed outside regular hours). */
+  sessionWarning?: string;
   live: boolean;
   dryRun: boolean;
+  /** True when the engine PRE-EMPTED the send (nothing was attempted) — e.g. a fractional dollar-market
+   *  order outside regular hours, which Robinhood rejects (HTTP 500). `force` bypasses the guard. */
+  preflightBlocked?: boolean;
   refId: string;
   orderId: string | null;
   state: string | null;
   httpStatus: number | string;
-  result: Awaited<ReturnType<typeof gatedBrokerageWrite>>;
+  result?: Awaited<ReturnType<typeof gatedBrokerageWrite>>;
   /** Post-send order-history re-read (live sends only) — failure mode #20 encoded in code. */
   evidence?: OrderEvidence;
 }
@@ -2567,6 +2958,7 @@ export async function placeEquityOrder(input: EquityOrderInput, deps: EquityOrde
   const write = deps.write ?? gatedBrokerageWrite;
   const log = deps.log ?? logTrade;
   const now = deps.now ?? Date.now;
+  const getMarketSession = deps.getMarketSession ?? computeMarketSession;
   const symbol = input.symbol.toUpperCase();
   const side = input.side;
   if (!input.amount && !input.shares) throw new Error("Must specify amount (dollars) or shares (quantity)");
@@ -2644,23 +3036,87 @@ export async function placeEquityOrder(input: EquityOrderInput, deps: EquityOrde
 
   // 5. Send (ref_id = broker-level idempotency; a 429 retries the SAME ref_id safely).
   const refId = `${symbol}-${input.accountNumber}-${now()}`;
+
+  // Body shape — two faithful forms, matching what robinhood.com itself sends:
+  //   • Dollar-notional MARKET order on a fractional-tradable (non-OTC) name → the NATIVE fractional
+  //     body: `dollar_based_amount {amount,currency_code}` (NOT a computed quantity) plus the live
+  //     bid/ask collar (`bid_price`/`ask_price`/`bid_ask_timestamp`), `market_hours`, and
+  //     `position_effect`. This is the exact body the web app posts for "$X of AAPL", and lets the
+  //     broker — not us — derive the fill quantity from the dollar amount. (Capture: 2026-06-14.)
+  //   • Everything else (whole shares, any limit order, OTC) → the quantity+price body. OTC and limit
+  //     orders have no native dollar form; shares are already exact.
+  // The collar fields come from the SAME live quote fetched above, so the timestamp is fresh (a stale
+  // collar is the one thing Robinhood rejects on the dollar path). Missing/one-sided book → the field
+  // is omitted rather than sent as 0/NaN. Zayd Khan // cold // www.zayd.wtf
+  const dollarBased = input.amount != null && !otc && isMarket;
+
+  // Session awareness — detect the CURRENT session so the order can (a) carry the right `market_hours`
+  // and (b) tell the operator whether it fills NOW or queues to the next regular session. Best-effort:
+  // a detection failure never blocks a send (session stays undefined, no warning). Fractional dollar
+  // orders are regular-hours-only, so their `market_hours` is always "regular_hours" — but when placed
+  // off-session we say so loudly, because "queued, not filled" is exactly the surprise to prevent.
+  let session: MarketSession | undefined;
+  let sessionWarning: string | undefined;
+  try {
+    session = (await getMarketSession({ getJson, now })).session;
+  } catch { /* best-effort — leave session undefined */ }
+  if (session && session !== "regular") {
+    if (dollarBased) {
+      sessionWarning = `Session is ${session}: fractional dollar orders fill ONLY in regular hours, so this will QUEUE to the next regular session — it will not fill now.`;
+    } else if (isMarket) {
+      sessionWarning = `Session is ${session}: a market order will QUEUE to the next regular session — it will not fill now. Use a limit order for extended-hours execution.`;
+    }
+  }
+
+  // PRE-FLIGHT GUARD (failure mode: silent 500): a fractional dollar-MARKET order outside regular hours
+  // is REJECTED by Robinhood with HTTP 500 — it does NOT queue (fractional/market orders only fill in
+  // regular hours). Eating that raw 500 looks like an opaque failure. Pre-empt it with a clear,
+  // actionable result and send NOTHING. `force` bypasses (e.g. to capture the live error for research).
+  if (dollarBased && session && session !== "regular" && !input.force) {
+    const reason = `Pre-flight: a fractional $${input.amount} ${side} of ${symbol} can't be placed during ${session} — Robinhood rejects dollar/market orders outside regular hours (they only fill in the regular session). Wait for the regular session, or buy whole shares with a limit. Pass force to attempt anyway.`;
+    return {
+      symbol, account: input.accountNumber, side, shares,
+      estimatedPrice: last, estimatedTotal: shares * last,
+      type: "market", otcAutoLimit, dollarBased,
+      session, sessionWarning: reason,
+      live: false, dryRun: false, preflightBlocked: true,
+      refId, orderId: null, state: null, httpStatus: 0
+    };
+  }
+
+  const baseBody: Record<string, unknown> = {
+    account: `https://api.robinhood.com/accounts/${input.accountNumber}/`,
+    instrument: `https://api.robinhood.com/instruments/${iid}/`,
+    symbol,
+    type: isMarket ? "market" : "limit",
+    time_in_force: tif,
+    trigger: "immediate",
+    side,
+    order_form_version: "7",
+    ref_id: refId
+  };
+  let body: Record<string, unknown>;
+  if (dollarBased) {
+    const bid = Number(q?.bid_price);
+    const ask = Number(q?.ask_price);
+    body = {
+      ...baseBody,
+      dollar_based_amount: { amount: Number(input.amount).toFixed(2), currency_code: "USD" },
+      market_hours: "regular_hours",
+      position_effect: side === "buy" ? "open" : "close",
+      ...(Number.isFinite(bid) && bid > 0 ? { bid_price: bid.toFixed(2) } : {}),
+      ...(Number.isFinite(ask) && ask > 0 ? { ask_price: ask.toFixed(2) } : {}),
+      ...(q?.updated_at ? { bid_ask_timestamp: String(q.updated_at) } : {})
+    };
+  } else {
+    body = { ...baseBody, quantity: String(shares), price };
+  }
+
   const result = await write({
     skipTradeLog: true, // placeEquityOrder writes its own richer log entry below — avoid double-logging
     url: "https://api.robinhood.com/orders/",
     method: "POST",
-    body: {
-      account: `https://api.robinhood.com/accounts/${input.accountNumber}/`,
-      instrument: `https://api.robinhood.com/instruments/${iid}/`,
-      symbol,
-      type: isMarket ? "market" : "limit",
-      time_in_force: tif,
-      trigger: "immediate",
-      side,
-      quantity: String(shares),
-      price,
-      order_form_version: "7",
-      ref_id: refId
-    },
+    body,
     dryRun: !liveWrite,
     liveWrite
   });
@@ -2707,6 +3163,9 @@ export async function placeEquityOrder(input: EquityOrderInput, deps: EquityOrde
     estimatedPrice: last, estimatedTotal: shares * last,
     type: isMarket ? "market" : "limit",
     otcAutoLimit,
+    dollarBased,
+    session,
+    sessionWarning,
     live: !result.dryRun, dryRun: result.dryRun, refId,
     orderId: (rb as any)?.id ?? (rb as any)?.url ?? null,
     state: (rb as any)?.state ?? null,

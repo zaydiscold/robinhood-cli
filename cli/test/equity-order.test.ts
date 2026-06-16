@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
   DEDUP_WINDOW_MS,
+  etClockSession,
+  computeMarketSession,
   extractOrderId,
   filterRecentPending,
   getOrderStatus,
-  placeEquityOrder
+  placeEquityOrder,
+  type MarketSession
 } from "../src/lib.js";
 
 // Golden-behavior tests for the shared equity-order engine — the single code path behind the CLI
@@ -22,6 +25,7 @@ interface Fix {
   pendingOrders: any[];
   writeResult: { status: number; dryRun: boolean; body: unknown };
   orderListThrows?: boolean;
+  session: MarketSession;
 }
 
 function makeDeps(overrides: Partial<Fix> = {}) {
@@ -30,11 +34,13 @@ function makeDeps(overrides: Partial<Fix> = {}) {
     quote: { last_trade_price: "100.00", instrument_id: "iid-123" },
     pendingOrders: [],
     writeResult: { status: 0, dryRun: true, body: "{}" },
+    session: "regular",
     ...overrides
   };
   const calls = { writes: [] as any[], logs: [] as any[], orderListQueries: 0 };
   const deps = {
     now: () => NOW,
+    getMarketSession: async () => ({ session: fix.session, isTradingDay: fix.session !== "closed", authoritative: true }),
     getJson: async (url: string) => {
       if (url.includes("instruments/?symbol")) return { results: fix.instrument ? [fix.instrument] : [] };
       if (url.includes("marketdata/quotes")) return { results: fix.quote ? [fix.quote] : [] };
@@ -183,8 +189,9 @@ describe("placeEquityOrder — validation & guards", () => {
 });
 
 describe("placeEquityOrder — order body & dry-run semantics", () => {
-  it("builds the exact market-buy body: 4dp sizing, ref_id, order_form_version 7, gfd", async () => {
-    const { deps, calls } = makeDeps();
+  it("dollar-notional market buy uses the NATIVE dollar_based_amount body + live collar (web parity, not a computed quantity)", async () => {
+    // Fractional-tradable name, dollar sizing, market → the body robinhood.com itself posts.
+    const { deps, calls } = makeDeps({ quote: { last_trade_price: "100.00", bid_price: "99.98", ask_price: "100.02", updated_at: "2026-06-14T20:00:00Z", instrument_id: "iid-123" } });
     const r = await placeEquityOrder({ symbol: "aapl", accountNumber: "A1", side: "buy", amount: 250 }, deps);
 
     expect(calls.writes).toHaveLength(1);
@@ -200,18 +207,61 @@ describe("placeEquityOrder — order body & dry-run semantics", () => {
       time_in_force: "gfd",
       trigger: "immediate",
       side: "buy",
-      quantity: "2.5",
-      price: "100.00",
+      dollar_based_amount: { amount: "250.00", currency_code: "USD" },
+      market_hours: "regular_hours",
+      position_effect: "open",
+      bid_price: "99.98",
+      ask_price: "100.02",
+      bid_ask_timestamp: "2026-06-14T20:00:00Z",
       order_form_version: "7",
       ref_id: `AAPL-A1-${NOW}`
     });
-    expect(r).toMatchObject({ symbol: "AAPL", shares: 2.5, estimatedTotal: 250, type: "market", dryRun: true, live: false, refId: `AAPL-A1-${NOW}` });
+    // The native dollar body carries NO computed quantity/price — the broker derives the fill.
+    expect(w.body).not.toHaveProperty("quantity");
+    expect(w.body).not.toHaveProperty("price");
+    // The result still reports the informational share estimate for display.
+    expect(r).toMatchObject({ symbol: "AAPL", shares: 2.5, estimatedTotal: 250, type: "market", dollarBased: true, dryRun: true, live: false, refId: `AAPL-A1-${NOW}` });
   });
 
-  it("limit orders use gtc and the 2dp limit price", async () => {
+  it("a dollar-notional sell uses position_effect:close", async () => {
+    const { deps, calls } = makeDeps({ quote: { last_trade_price: "100.00", bid_price: "99.98", ask_price: "100.02", updated_at: "2026-06-14T20:00:00Z", instrument_id: "iid-123" } });
+    await placeEquityOrder({ symbol: "AAPL", accountNumber: "A1", side: "sell", amount: 50 }, deps);
+    expect(calls.writes[0].body).toMatchObject({ dollar_based_amount: { amount: "50.00", currency_code: "USD" }, position_effect: "close", side: "sell" });
+  });
+
+  it("the dollar body omits collar fields on a one-sided/dead book rather than sending 0/NaN", async () => {
+    const { deps, calls } = makeDeps({ quote: { last_trade_price: "100.00", bid_price: "0.00", ask_price: null, instrument_id: "iid-123" } });
+    const r = await placeEquityOrder({ symbol: "AAPL", accountNumber: "A1", side: "buy", amount: 250 }, deps);
+    const b = calls.writes[0].body;
+    expect(b).toMatchObject({ dollar_based_amount: { amount: "250.00", currency_code: "USD" }, market_hours: "regular_hours", position_effect: "open" });
+    expect(b).not.toHaveProperty("bid_price");
+    expect(b).not.toHaveProperty("ask_price");
+    expect(b).not.toHaveProperty("bid_ask_timestamp");
+    expect(r.dollarBased).toBe(true);
+  });
+
+  it("SHARE sizing keeps the quantity+price body (no dollar form), gfd market", async () => {
     const { deps, calls } = makeDeps();
-    await placeEquityOrder({ symbol: "AAPL", accountNumber: "A1", side: "sell", shares: 3, limitPrice: 95.5 }, deps);
+    const r = await placeEquityOrder({ symbol: "AAPL", accountNumber: "A1", side: "buy", shares: 2.5 }, deps);
+    expect(calls.writes[0].body).toMatchObject({ type: "market", time_in_force: "gfd", quantity: "2.5", price: "100.00", order_form_version: "7" });
+    expect(calls.writes[0].body).not.toHaveProperty("dollar_based_amount");
+    expect(r.dollarBased).toBe(false);
+  });
+
+  it("limit orders use gtc and the 2dp limit price (quantity body, never dollar)", async () => {
+    const { deps, calls } = makeDeps();
+    const r = await placeEquityOrder({ symbol: "AAPL", accountNumber: "A1", side: "sell", shares: 3, limitPrice: 95.5 }, deps);
     expect(calls.writes[0].body).toMatchObject({ type: "limit", time_in_force: "gtc", price: "95.50", side: "sell", quantity: "3" });
+    expect(calls.writes[0].body).not.toHaveProperty("dollar_based_amount");
+    expect(r.dollarBased).toBe(false);
+  });
+
+  it("a dollar-notional LIMIT order stays on the quantity+price body (dollar form is market-only)", async () => {
+    const { deps, calls } = makeDeps();
+    const r = await placeEquityOrder({ symbol: "AAPL", accountNumber: "A1", side: "buy", amount: 250, limitPrice: 99 }, deps);
+    expect(calls.writes[0].body).toMatchObject({ type: "limit", quantity: "2.5", price: "99.00" });
+    expect(calls.writes[0].body).not.toHaveProperty("dollar_based_amount");
+    expect(r.dollarBased).toBe(false);
   });
 
   it("dry-run never queries the pending-order list and never logs a trade", async () => {
@@ -254,6 +304,95 @@ describe("placeEquityOrder — live-send dedup & logging", () => {
     expect(calls.logs).toHaveLength(1);
     expect(calls.logs[0]).toMatchObject({ symbol: "AAPL", account: "A1", side: "buy", refId: `AAPL-A1-${NOW}`, orderId: "ord-1", httpStatus: 201 });
     expect(r).toMatchObject({ live: true, dryRun: false, orderId: "ord-1", state: "queued", httpStatus: 201 });
+  });
+});
+
+describe("placeEquityOrder — session awareness", () => {
+  it("regular hours: no queue warning, session attached", async () => {
+    const { deps } = makeDeps({ session: "regular", quote: { last_trade_price: "100.00", bid_price: "99.98", ask_price: "100.02", updated_at: "t", instrument_id: "iid-123" } });
+    const r = await placeEquityOrder({ symbol: "AAPL", accountNumber: "A1", side: "buy", amount: 250 }, deps);
+    expect(r.session).toBe("regular");
+    expect(r.sessionWarning).toBeUndefined();
+  });
+
+  it("off-session dollar order is PRE-EMPTED (Robinhood 500s it) — nothing sent, clear reason", async () => {
+    // Field-verified 2026-06-15: a fractional dollar-MARKET order placed after hours returns HTTP 500
+    // (it does NOT queue). The engine pre-empts the doomed send instead of eating a raw 500.
+    for (const session of ["pre_market", "after_hours", "closed"] as MarketSession[]) {
+      const { deps, calls } = makeDeps({ session });
+      const r = await placeEquityOrder({ symbol: "AAPL", accountNumber: "A1", side: "buy", amount: 250 }, deps);
+      expect(r.preflightBlocked).toBe(true);
+      expect(r.live).toBe(false);
+      expect(r.dryRun).toBe(false);
+      expect(calls.writes).toHaveLength(0); // NOTHING was sent
+      expect(r.session).toBe(session);
+      expect(r.sessionWarning).toMatch(/can't be placed during/);
+      expect(r.sessionWarning).toContain(session);
+    }
+  });
+
+  it("force bypasses the off-session pre-flight guard and sends anyway (for capture/research)", async () => {
+    const { deps, calls } = makeDeps({ session: "after_hours" });
+    const r = await placeEquityOrder({ symbol: "AAPL", accountNumber: "A1", side: "buy", amount: 250, force: true }, deps);
+    expect(r.preflightBlocked).toBeFalsy();
+    expect(calls.writes[0].body).toMatchObject({ market_hours: "regular_hours", dollar_based_amount: { amount: "250.00", currency_code: "USD" } });
+    expect(r.sessionWarning).toMatch(/QUEUE to the next regular session/);
+  });
+
+  it("off-session whole-share MARKET order warns it will queue (suggests a limit for extended hours)", async () => {
+    const { deps } = makeDeps({ session: "after_hours" });
+    const r = await placeEquityOrder({ symbol: "AAPL", accountNumber: "A1", side: "buy", shares: 3 }, deps);
+    expect(r.sessionWarning).toMatch(/market order will QUEUE/);
+    expect(r.sessionWarning).toMatch(/limit order for extended-hours/);
+  });
+
+  it("off-session LIMIT order gets NO queue warning (a limit can rest/execute extended)", async () => {
+    const { deps } = makeDeps({ session: "after_hours" });
+    const r = await placeEquityOrder({ symbol: "AAPL", accountNumber: "A1", side: "sell", shares: 3, limitPrice: 95.5 }, deps);
+    expect(r.session).toBe("after_hours");
+    expect(r.sessionWarning).toBeUndefined();
+  });
+
+  it("a failed session detection never blocks the send (session undefined, no warning)", async () => {
+    const { deps, calls } = makeDeps({ session: "closed" });
+    (deps as any).getMarketSession = async () => { throw new Error("hours endpoint down"); };
+    const r = await placeEquityOrder({ symbol: "AAPL", accountNumber: "A1", side: "buy", amount: 250 }, deps);
+    expect(r.session).toBeUndefined();
+    expect(r.sessionWarning).toBeUndefined();
+    expect(calls.writes).toHaveLength(1); // order still planned
+  });
+});
+
+describe("computeMarketSession — authoritative RH hours classification", () => {
+  // 2026-06-12 hours (real shape): regular 13:30Z–20:00Z, extended 11:00Z–00:00Z(+1).
+  const HOURS = { is_open: true, opens_at: "2026-06-12T13:30:00Z", closes_at: "2026-06-12T20:00:00Z", extended_opens_at: "2026-06-12T11:00:00Z", extended_closes_at: "2026-06-13T00:00:00Z" };
+  const at = (iso: string) => ({ getJson: (async () => HOURS) as any, now: () => Date.parse(iso) });
+
+  it("classifies regular / pre_market / after_hours / closed from the live window", async () => {
+    expect((await computeMarketSession(at("2026-06-12T15:00:00Z"))).session).toBe("regular");
+    expect((await computeMarketSession(at("2026-06-12T12:00:00Z"))).session).toBe("pre_market");
+    expect((await computeMarketSession(at("2026-06-12T22:00:00Z"))).session).toBe("after_hours");
+    expect((await computeMarketSession(at("2026-06-12T02:00:00Z"))).session).toBe("closed");
+  });
+
+  it("a non-trading day (is_open:false) is closed and not a trading day", async () => {
+    const r = await computeMarketSession({ getJson: (async () => ({ is_open: false })) as any, now: () => Date.parse("2026-06-14T15:00:00Z") });
+    expect(r).toMatchObject({ session: "closed", isTradingDay: false, authoritative: true });
+  });
+
+  it("falls back to the ET clock (non-authoritative) when the hours read fails", async () => {
+    const r = await computeMarketSession({ getJson: (async () => { throw new Error("down"); }) as any, now: () => Date.parse("2026-06-12T15:00:00Z") });
+    expect(r.authoritative).toBe(false);
+    expect(r.session).toBe("regular"); // 15:00Z Fri = 11:00 ET → regular
+  });
+});
+
+describe("etClockSession — fallback heuristic", () => {
+  it("maps ET wall-clock windows and treats weekends as closed", () => {
+    expect(etClockSession(Date.parse("2026-06-12T15:00:00Z"))).toBe("regular");    // Fri 11:00 ET
+    expect(etClockSession(Date.parse("2026-06-12T12:00:00Z"))).toBe("pre_market"); // Fri 08:00 ET
+    expect(etClockSession(Date.parse("2026-06-12T22:30:00Z"))).toBe("after_hours");// Fri 18:30 ET
+    expect(etClockSession(Date.parse("2026-06-14T16:00:00Z"))).toBe("closed");     // Sunday
   });
 });
 
