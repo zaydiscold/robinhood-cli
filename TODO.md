@@ -1,5 +1,21 @@
 # TODO — robinhood-cli hardening roadmap
 
+## ⏰ TRIGGER AT MARKET OPEN — custom-watchlist $1 basket (added 2026-06-15)
+
+- [ ] **Place the $1 watchlist basket at the next regular open.** Fractional dollar orders are
+  regular-hours-only (Robinhood **500s** them after hours — verified live 2026-06-15), so a basket
+  attempted after the 13:00 PDT close cannot fill. Run at/after **06:30 PDT (09:30 ET)**, market open:
+
+  ```bash
+  node cli/dist/index.js watchlist buy "<list-name>" --account <account_number> --amount 1 --live-write
+  ```
+
+  Notes: the command is **BP-aware** — if the basket total ($amount × tradable count) exceeds the
+  account's buying power, it places the affordable prefix and reports the rest as skipped (top up or
+  pass `--limit`). One-gate model: `--live-write` alone is the whole gate now — no env var needed.
+  Verify after: `node cli/dist/index.js history --account <account_number> --days 1` (order history
+  is the only proof an order happened).
+
 ## Execution safeties — checks and balances (added 2026-06-11)
 
 - [x] **`pretrade` gate command** (BUILT 2026-06-11: CLI `pretrade` + MCP `robinhood_pretrade`, PASS/WARN/BLOCK checklist, marketability left as manual gated POST): one shot that runs buying power + options collateral + marketability +
