@@ -24,6 +24,7 @@ import {
   planBrokerageRequest,
   planCryptoRequest,
   resolveLiveWriteGate,
+  accountFromWriteRequest,
   riskIsWrite,
   selectRouteByQueryAndMethod,
   brokerageGetJson,
@@ -672,7 +673,7 @@ server.registerTool(
     if (!route) {
       throw new Error(`No brokerage route matched: ${query}`);
     }
-    const gate = resolveLiveWriteGate({ risk: route.risk, method, dryRun, liveWrite });
+    const gate = resolveLiveWriteGate({ risk: route.risk, method, dryRun, liveWrite, accountNumber: accountFromWriteRequest(body, parseParamAssignments(params)) });
     const effectiveDryRun = dryRun || gate.forcedDryRun;
     const plan = planBrokerageRequest({
       route,
@@ -790,7 +791,7 @@ server.registerTool(
     if (!route) {
       throw new Error(`No official Crypto route matched: ${query}`);
     }
-    const gate = resolveLiveWriteGate({ risk: route.risk, method, dryRun, liveWrite });
+    const gate = resolveLiveWriteGate({ risk: route.risk, method, dryRun, liveWrite, accountNumber: accountFromWriteRequest(body, parseParamAssignments(params)) });
     const effectiveDryRun = dryRun || gate.forcedDryRun;
     const plan = planCryptoRequest({
       route,

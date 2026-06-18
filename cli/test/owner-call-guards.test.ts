@@ -9,6 +9,7 @@ import {
   resetSessionNotionalSpent,
   getSessionNotionalSpent,
   NotionalCapError,
+  accountFromWriteRequest,
 } from "../src/lib.js";
 
 // Owner-call hardening guards. These prove the defense-in-depth layers actually engage — not slop.
@@ -98,5 +99,33 @@ describe("notional caps (§2.8 — ROBINHOOD_MAX_ORDER_DOLLARS / _SESSION_DOLLAR
 
   it("no caps configured → never throws, even for a huge order", () => {
     expect(() => checkNotionalCaps(1_000_000, { env: {} as any })).not.toThrow();
+  });
+});
+
+describe("accountFromWriteRequest (§2.9 — closes the lock-bypass on generic writes / brokerage execute)", () => {
+  it("extracts the account from a /accounts/{num}/ body URL (order writes)", () => {
+    expect(accountFromWriteRequest({ account: "https://api.robinhood.com/accounts/123456/", side: "buy" })).toBe("123456");
+  });
+
+  it("extracts from params (account_number / account / num), trimming", () => {
+    expect(accountFromWriteRequest(undefined, { account_number: "111" })).toBe("111");
+    expect(accountFromWriteRequest(undefined, { num: " 222 " })).toBe("222");
+  });
+
+  it("extracts from body.account_number (number or string)", () => {
+    expect(accountFromWriteRequest({ account_number: 999 })).toBe("999");
+  });
+
+  it("returns undefined when no account is present (e.g. an account-less cancel) — documented gap", () => {
+    expect(accountFromWriteRequest({ foo: "bar" }, {})).toBeUndefined();
+    expect(accountFromWriteRequest(undefined, undefined)).toBeUndefined();
+  });
+
+  it("END-TO-END: the extracted account drives the lock — a body-account write to a non-allowed account is forced to dry-run", () => {
+    const env = { ROBINHOOD_ALLOW_LIVE_WRITE: "1", ROBINHOOD_ALLOWED_ACCOUNT: "111" } as any;
+    const body = { account: "https://api.robinhood.com/accounts/999/" };
+    const gate = resolveLiveWriteGate({ risk: "write-mutate", method: "POST", dryRun: false, accountNumber: accountFromWriteRequest(body), env });
+    expect(gate.forcedDryRun).toBe(true);
+    expect(gate.reason).toMatch(/not in ROBINHOOD_ALLOWED_ACCOUNT/);
   });
 });

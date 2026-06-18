@@ -80,6 +80,7 @@ import {
   printJson,
   printTable,
   resolveLiveWriteGate,
+  accountFromWriteRequest,
   selectNearStrikes,
   signCryptoRequest,
   summarizeApiMap
@@ -675,11 +676,14 @@ brokerage
     if (!route) {
       throw new Error(noMatchHint(query));
     }
+    const reqParams = parseParamAssignments(options.param);
+    const reqBody = parseJsonBody(options.bodyJson);
     const gate = resolveLiveWriteGate({
       risk: route.risk,
       method: options.method,
       dryRun: Boolean(options.dryRun),
-      liveWrite: Boolean(options.liveWrite)
+      liveWrite: Boolean(options.liveWrite),
+      accountNumber: accountFromWriteRequest(reqBody, reqParams)
     });
     if (gate.forcedDryRun && gate.reason) {
       process.stderr.write(`${gate.reason}\n`);
@@ -688,9 +692,9 @@ brokerage
     const plan = planBrokerageRequest({
       route,
       method: options.method,
-      params: parseParamAssignments(options.param),
+      params: reqParams,
       query: parseParamAssignments(options.queryParam),
-      body: parseJsonBody(options.bodyJson),
+      body: reqBody,
       dryRun: effectiveDryRun
     });
     const result = await executeBrokerageRequest(plan, {
@@ -720,9 +724,11 @@ brokerage
   .option("--limit <price>", "explicit limit price; else market with ask collar (OTC forces a limit at the ask)")
   .option("--tif <gfd|gtc>", "time in force", "gfd")
   .option("--dry-run", "print plan/body, send nothing")
+  .option("--live", "send live (requires ROBINHOOD_ALLOW_LIVE_WRITE=1); without it the order is dry-run — matches the top-level `buy`")
+  .option("--force", "skip the pending-duplicate-order check")
   .option("--live-write", "optional back-compat no-op; the live-write gate is ROBINHOOD_ALLOW_LIVE_WRITE=1")
   .option("--json", "emit JSON")
-  .action(async (symbol: string, opts: { account: string; dollars?: string; shares?: string; limit?: string; tif?: string; dryRun?: boolean; liveWrite?: boolean; json?: boolean }) => {
+  .action(async (symbol: string, opts: { account: string; dollars?: string; shares?: string; limit?: string; tif?: string; dryRun?: boolean; live?: boolean; force?: boolean; liveWrite?: boolean; json?: boolean }) => {
     if (!opts.dollars && !opts.shares) throw new Error("Pass --dollars <amt> or --shares <qty>.");
     if (opts.dollars && opts.shares) throw new Error("Pass only one of --dollars or --shares.");
     if (opts.dollars && !(Number(opts.dollars) > 0)) throw new Error(`--dollars must be a positive number (got "${opts.dollars}").`);
@@ -740,8 +746,8 @@ brokerage
       amount: opts.dollars ? Number(opts.dollars) : undefined,
       shares: opts.shares ? Number(opts.shares) : undefined,
       limitPrice: opts.limit ? Number(opts.limit) : undefined,
-      liveWrite: !opts.dryRun,
-      force: false
+      liveWrite: Boolean(opts.live) && !opts.dryRun,
+      force: Boolean(opts.force)
     });
 
     const acctTag = acctLabel ? `${opts.account} (${acctLabel})` : opts.account;

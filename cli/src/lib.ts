@@ -1,7 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { createPrivateKey, randomUUID, sign } from "node:crypto";
 import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { dirname, isAbsolute, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 // Walk up from a start dir to a repo marker. Robust across build layouts (cli/dist,
@@ -1819,6 +1819,28 @@ export function isAccountAllowed(accountNumber: string, env: NodeJS.ProcessEnv =
   return allow.length === 0 || allow.includes(String(accountNumber).trim());
 }
 
+// Best-effort extraction of the target account from a write request body/params, so the
+// account-lock engages even on generic writes (brokerage execute, options orders, settings)
+// where the account isn't passed explicitly. Recognizes params (account_number/account/num) and
+// body.account (the /accounts/{num}/ URL) or body.account_number. undefined when none is found —
+// the lock then can't apply (e.g. account-less cancels), which is documented as a known gap.
+export function accountFromWriteRequest(body?: unknown, params?: Record<string, string>): string | undefined {
+  const p = params ?? {};
+  for (const k of ["account_number", "account", "num"]) {
+    const v = p[k];
+    if (v != null && /^[0-9]+$/.test(String(v).trim())) return String(v).trim();
+  }
+  const b = body as any;
+  if (b && typeof b === "object") {
+    if (typeof b.account === "string") {
+      const m = b.account.match(/\/accounts\/([^/]+)\//);
+      if (m && m[1]) return String(m[1]).trim();
+    }
+    if (b.account_number != null) return String(b.account_number).trim();
+  }
+  return undefined;
+}
+
 // ── Notional caps: optional per-order and per-session dollar ceilings for LIVE sends ──
 // ROBINHOOD_MAX_ORDER_DOLLARS / ROBINHOOD_MAX_SESSION_DOLLARS (both default-disabled). A live order
 // whose notional exceeds the per-order cap, or would push cumulative session spend past the session
@@ -1945,6 +1967,7 @@ export function resolveBash(platform: NodeJS.Platform = process.platform, env: N
   // Explicit, absolute override (validated) — never PATH-resolve on a token-handling path.
   const override = env.ROBINHOOD_BASH_PATH;
   if (override) {
+    if (!isAbsolute(override)) throw new Error(`ROBINHOOD_BASH_PATH must be an ABSOLUTE path (got: ${override}) — never PATH-resolve bash on a token-handling path.`);
     if (existsSync(override)) return override;
     throw new Error(`ROBINHOOD_BASH_PATH is set but not found: ${override}`);
   }
@@ -2566,7 +2589,7 @@ export async function gatedBrokerageWrite(opts: {
     const tail = suggestions.length ? ` Closest mapped routes: ${suggestions.join(" | ")}.` : "";
     throw new Error(`No ${opts.method ?? "matching"} route for ${opts.url} — a forced write with no matching write route fails closed (never degrades to a read).${tail} Check the map / rebuild (AGENTS.md §3).`);
   }
-  const gate = resolveLiveWriteGate({ risk: route.risk, method: opts.method, dryRun: Boolean(opts.dryRun), liveWrite: Boolean(opts.liveWrite), accountNumber: opts.accountNumber });
+  const gate = resolveLiveWriteGate({ risk: route.risk, method: opts.method, dryRun: Boolean(opts.dryRun), liveWrite: Boolean(opts.liveWrite), accountNumber: opts.accountNumber ?? accountFromWriteRequest(opts.body, opts.params) });
   const effectiveDryRun = Boolean(opts.dryRun) || gate.forcedDryRun;
   const plan = planBrokerageRequest({ route, method: opts.method, params: opts.params ?? {}, body: opts.body, dryRun: effectiveDryRun });
   const result = await executeBrokerageRequest(plan, { dryRun: effectiveDryRun, body: opts.body, fullBody: true });
@@ -3245,7 +3268,9 @@ export async function placeEquityOrder(input: EquityOrderInput, deps: EquityOrde
     liveWrite,
     accountNumber: input.accountNumber
   });
-  if (!result.dryRun) recordSessionNotional(notional);
+  // Record session spend ONLY on a confirmed live send (2xx) — a rejected order must not consume
+  // the session budget and falsely block the next one.
+  if (!result.dryRun && Number(result.status) >= 200 && Number(result.status) < 300) recordSessionNotional(notional);
 
   const rb = (() => {
     try { return typeof result.body === "string" ? JSON.parse(result.body) : result.body; }
