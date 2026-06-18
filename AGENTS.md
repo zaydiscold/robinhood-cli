@@ -579,10 +579,13 @@ ROBINHOOD_ALLOW_LIVE_WRITE=1 robinhood-cli brokerage execute \
   "https://bonfire.robinhood.com/recurring_schedules/{0}/" --method PATCH \
   --param 0=<SCHEDULE_ID> --body-json '{"state":"active"}' --live-write   # PAUSE: "paused"
 
-# DRIP — toggle dividend reinvestment per account (PATCH, body {"drip_enrolled": true|false}):
+# DRIP — toggle dividend reinvestment per account. The WRITE is PATCH
+# corp_actions/drip/account_settings/{account_number}/ with body {"drip_enabled": true|false}
+# (per-stock variant: .../drip/instrument_settings/{account_number}/{instrument_id}/).
+# corp_actions/drip/enrollment/ is GET-only — PATCH/POST/PUT there return 405; do NOT write to it.
 robinhood-cli brokerage execute \
-  "https://api.robinhood.com/corp_actions/drip/enrollment/{num}/" --method PATCH \
-  --param account_number=<ACCOUNT_NUMBER> --body-json '{"drip_enrolled":true}'   # dry-run unless gated
+  "https://api.robinhood.com/corp_actions/drip/account_settings/{account_number}/" --method PATCH \
+  --param account_number=<ACCOUNT_NUMBER> --body-json '{"drip_enabled":true}'   # dry-run unless gated
 
 # CANCEL an order (POST, no body):
 robinhood-cli brokerage execute \
