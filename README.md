@@ -83,7 +83,7 @@ boot (read the operating-intelligence KB → memory → doctrine)
   → update memory  (ball-knowledge.md) → the thread continues next session
 ```
 
-The layers an agent reads to do that: **`SKILL.md`** (the lean, portable skill entry point — trigger + 80/20 + the operating loop + intent routing) → **`references/`** (the skill's progressive-disclosure layer: `operation-guide`, `command-catalog`, `api-route-map`, `safety-doctrine`, `options-strategy`, `troubleshooting`) → **`knowledge/`** (per-topic reasoning modules) → **`docs/agent-operating-intelligence-2026-06-04.md`** (the boot-smart KB: cardinal rule, account/order/signal decision frameworks, failure→fix tree) → the **memory** files → the **research** docs (`docs/strategy-deep-dive-*`, `institutional-outlook-*`, `tax-aware-options-strategies`, `options-strategies-knowledge-base`). The in-repo **`AGENTS.md`** (developer/maintainer runbook; `CLAUDE.md` is a symlink to it) covers build/test, the shared-engine invariant, and route-map editing. Everything is engine-backed (`cli/src/lib.ts`) and env-gated.
+The layers an agent reads to do that: **`SKILL.md`** (the lean, portable skill entry point — trigger + 80/20 + the operating loop + intent routing) → **`knowledge/`** (per-topic reasoning modules) → **`docs/agent-operating-intelligence-2026-06-04.md`** (the boot-smart KB: cardinal rule, account/order/signal decision frameworks, failure→fix tree) → the **memory** files → the **research** docs (`docs/strategy-deep-dive-*`, `institutional-outlook-*`, `tax-aware-options-strategies`, `options-strategies-knowledge-base`). The in-repo **`AGENTS.md`** (developer/maintainer runbook) covers build/test, the shared-engine invariant, and route-map editing; **`CLAUDE.md` symlinks to `SKILL.md`** (the skill entry point). Everything is engine-backed (`cli/src/lib.ts`) and env-gated.
 
 ## Coverage
 
@@ -565,15 +565,14 @@ N positions — green/red split.
 
 > **Rebuild note:** the build copies `api-map/brokerage-routes.json` into `cli/dist/`, and the runtime reads that copy. After editing the route map, **rebuild** (`pnpm build`) or your change is a silent no-op.
 
-For the full agent playbook — account discovery, the gate, watchlists, recurring investments — see [`SKILL.md`](./SKILL.md) and its [`references/`](./references/). For the in-repo developer/maintainer runbook (build/test, the shared-engine invariant, route-map editing), see [`AGENTS.md`](./AGENTS.md). For the public docs index, see [`docs/README.md`](./docs/README.md).
+For the full agent playbook — account discovery, the gate, watchlists, recurring investments — see [`SKILL.md`](./SKILL.md). For the in-repo developer/maintainer runbook (build/test, the shared-engine invariant, route-map editing), see [`AGENTS.md`](./AGENTS.md). For the public docs index, see [`docs/README.md`](./docs/README.md).
 
 ## Documentation
 
 | Path | Purpose |
 |------|---------|
-| [`SKILL.md`](./SKILL.md) | Portable skill entry point for agents/Hermes installers (lean operator router) — deep how-to in [`references/`](./references/) |
-| [`references/`](./references/) | Skill progressive-disclosure layer: operation guide, command catalog, API route map, safety doctrine, options strategy, troubleshooting |
-| [`AGENTS.md`](./AGENTS.md) | In-repo developer/maintainer runbook: repo layout, build/test, shared-engine invariant, route-map editing, MCP registration (`CLAUDE.md` is a symlink to it) |
+| [`SKILL.md`](./SKILL.md) | Portable skill entry point for agents/Hermes installers (lean operator router) — deep how-to in [`knowledge/`](./knowledge/) and [`docs/`](./docs/) |
+| [`AGENTS.md`](./AGENTS.md) | In-repo developer/maintainer runbook: repo layout, build/test, shared-engine invariant, route-map editing, MCP registration |
 | [`docs/README.md`](./docs/README.md) | Public docs index and naming/release rules |
 | [`docs/account-settings-capability-map-2026-06-03.md`](./docs/account-settings-capability-map-2026-06-03.md) | Funding, recurring, DRIP, cash sweep, stock lending, margin, futures, event-contract capability matrix |
 | [`docs/options-strategy-execution-smoke-2026-06-03.md`](./docs/options-strategy-execution-smoke-2026-06-03.md) | Dry-run options strategy smoke evidence |

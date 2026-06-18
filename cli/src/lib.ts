@@ -5574,18 +5574,20 @@ export function signCryptoRequest(input: {
   path: string;
   method: string;
   body?: string;
-}): { "x-api-key": string; "x-timestamp": string; "x-signature": string; signedMessage: string } {
+}): { "x-api-key": string; "x-timestamp": string; "x-signature": string } {
   const timestamp = String(input.timestamp);
   const method = input.method.toUpperCase();
   const body = input.body ?? "";
   const signedMessage = `${input.apiKey}${timestamp}${input.path}${method}${body}`;
   const privateKey = privateKeyFromBase64Seed(input.privateKeyBase64);
   const signature = sign(null, Buffer.from(signedMessage, "utf8"), privateKey).toString("base64");
+  // NOTE: never return `signedMessage` — it embeds the API key in plaintext and would be
+  // echoed through the MCP/CLI response into logs and model context. Callers need only the
+  // three signed headers below; reconstruct the message internally if ever required.
   return {
     "x-api-key": input.apiKey,
     "x-timestamp": timestamp,
-    "x-signature": signature,
-    signedMessage
+    "x-signature": signature
   };
 }
 
