@@ -15,6 +15,20 @@ this is so much much better. this makes their "agentic" control release whatever
 
 robinhood please hire me this is what love for the game produces. 
 
+---
+
+## ⚠️ DISCLAIMER
+
+**This is an independent, unofficial project. It is NOT affiliated with, endorsed by, or approved by Robinhood Markets, Inc.**
+
+- **Not financial advice.** Nothing in this tool — including strategy documentation, tax discussions, income calculations, risk metrics, or roll plans — constitutes investment, tax, or legal advice. All trading decisions are yours alone. Consult a qualified professional for your specific situation.
+- **Real money, real risk.** This tool can place real trades on your real Robinhood account. You can lose money — potentially more than your initial investment (options involve leverage, assignment risk, and unlimited loss on uncovered positions). Only use it with an account you own and with full understanding of the risks.
+- **No warranty.** This software is provided "as is" without warranty of any kind, express or implied. See the [LICENSE](LICENSE) file.
+- **Unofficial API access.** This tool accesses Robinhood's private web API using your browser session token. Robinhood's Terms of Service may prohibit automated or non-browser access. Use at your own risk.
+- **Use your own account, at your own risk.**
+
+---
+
 (and it's going *so* well that robinhood's already stealing my features — they shipped a **Dividend tracker** (that's [our `dividends` engine](#-bro-robinhood-ripped-our-feature-lmao)) four days after it landed in this repo. lol. receipts below 👇)
 
 ---

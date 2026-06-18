@@ -112,23 +112,26 @@ robinhood-cli whatif --account <N> --spot-pct +5 --iv-pct +10 --days 7 --json
 | `spot_pct` | number | 0 | Spot change in % (e.g. +5 or -3) |
 | `iv_pct` | number | 0 | IV change in % points (e.g. +10 or -5) |
 | `days` | int | 0 | Days of theta decay |
+| `rate_change_pct` | number | 0 | Rate change in % points (rho sensitivity) |
 
 **Outputs:**
 | Field | Description |
 |---|---|
-| `scenario` | `{ spotChangePct, ivChangePct, daysPassed }` |
+| `scenario` | `{ spotChangePct, ivChangePct, daysPassed, rateChangePct }` |
 | `totalEstimatedPnlUsd` | Portfolio-wide estimated P&L |
-| `greekDecomposition` | `{ deltaUsd, gammaUsd, thetaUsd, vegaUsd }` — per-Greek contribution |
-| `perPosition[]` | Per-position: `estimatedPnlUsd`, `marketValueUsd`, `netDelta`, `netGamma`, `netTheta`, `netVega` |
+| `totalRho` | Portfolio-wide net rho |
+| `greekDecomposition` | `{ deltaUsd, gammaUsd, thetaUsd, vegaUsd, rhoUsd }` — per-Greek contribution |
+| `perPosition[]` | Per-position: `estimatedPnlUsd`, `marketValueUsd`, `netDelta`, `netGamma`, `netTheta`, `netVega`, `netRho` |
 
 **Math (Taylor approximation):**
 ```
-ΔP ≈ delta × ΔS + ½ × gamma × ΔS² + theta × Δt + vega × Δσ
+ΔP ≈ delta × ΔS + ½ × gamma × ΔS² + theta × Δt + vega × Δσ + rho × Δr
 
 Where:
   ΔS = spotPct / 100          (spot change as decimal)
   Δt = days                    (theta is daily)
   Δσ = ivPct / 100             (IV change as decimal)
+  Δr = rateChangePct / 100     (rate change as decimal)
 ```
 
 Greeks are fetched from live `marketdata/options/?ids=` marks and signed:

@@ -907,8 +907,8 @@ deep math lives in *Options Greeks and Strategy Math* above.
 | "Open the exact contract for me" | resolve + navigate | `api-map options-contract-links ...` (emits the API-resolved contract + chain-id deeplink) |
 | "Roll my position" | staged close+open plan | `options roll-plan ...` (cash-account aware; see below) |
 | "Where am I in the wheel / what's the next leg?" | evidence-based stage + next-leg command | `wheel [symbol] [--account <N>]` (read-only; classifies CSP→shares→CC from live positions, flags undercovered short calls, works with no position as discussion mode) |
-| "Place / cancel an order" | gated write | `brokerage execute "options/orders/" --method POST --live-write` ... then `options/orders/{0}/cancel/` |
-| "Change a setting (DRIP, recurring, etc.)" | gated write | `recurring pause|resume`; route-map writes via `brokerage execute --method ... --live-write` |
+| "Place / cancel an order" | gated write | `brokerage execute "options/orders/" --method POST` ... then `options/orders/{0}/cancel/` (live needs `ROBINHOOD_ALLOW_LIVE_WRITE=1`) |
+| "Change a setting (DRIP, recurring, etc.)" | gated write | `recurring pause|resume`; route-map writes via `brokerage execute --method ...` (live needs `ROBINHOOD_ALLOW_LIVE_WRITE=1`) |
 
 **Decision rule:** read first, classify the strategy, compute payoff + net Greeks,
 emit blockers, *then* (only on explicit request + the ROBINHOOD_ALLOW_LIVE_WRITE=1 switch) send. Never
@@ -1523,7 +1523,7 @@ node cli/dist/index.js brokerage execute "recurring resume --all" --json
 
 # Live resume — switch on
 ROBINHOOD_ALLOW_LIVE_WRITE=1 node cli/dist/index.js brokerage execute \
-  "recurring resume --all --live-write" --json
+  "recurring resume --all" --json
 ```
 
 Full details: `AGENTS.md` §9.

@@ -3568,24 +3568,26 @@ program
 // ── whatif: greeks scenario calculator ──
 program
   .command("whatif")
-  .description("Greeks scenario calculator: apply spot ±X%, IV ±N%, T - N days to portfolio Greeks and compute estimated P&L per position and total. Live read.")
+  .description("Greeks scenario calculator: apply spot ±X%, IV ±N%, T - N days, rate ±P% to portfolio Greeks and compute estimated P&L per position and total. Live read.")
   .option("--account <number>", "scope to one account (default: all owned)")
   .option("--spot-pct <pct>", "spot change in % (e.g. +5 or -3)", "0")
   .option("--iv-pct <pct>", "IV change in % points (e.g. +10 or -5)", "0")
   .option("--days <n>", "days of theta decay", "0")
+  .option("--rate-change-pct <pct>", "rate change in % points (rho sensitivity)", "0")
   .option("--json", "emit JSON")
-  .action(async (opts: { account?: string; spotPct?: string; ivPct?: string; days?: string; json?: boolean }) => {
+  .action(async (opts: { account?: string; spotPct?: string; ivPct?: string; days?: string; rateChangePct?: string; json?: boolean }) => {
     const r = await computeWhatIf({
       accountNumber: opts.account, spotPct: Number(opts.spotPct ?? "0"),
-      ivPct: Number(opts.ivPct ?? "0"), days: Number(opts.days ?? "0")
+      ivPct: Number(opts.ivPct ?? "0"), days: Number(opts.days ?? "0"),
+      rateChangePct: Number(opts.rateChangePct ?? "0")
     });
     if (opts.json) { printJson({ generatedAt: new Date().toISOString(), ...r }); return; }
     const s = r.scenario;
     process.stdout.write(`What-If Scenario — ${r.accountsScanned.length} account(s)\n`);
-    process.stdout.write(`Spot ${s.spotChangePct >= 0 ? "+" : ""}${s.spotChangePct}% · IV ${s.ivChangePct >= 0 ? "+" : ""}${s.ivChangePct}% · T-${s.daysPassed}d\n`);
+    process.stdout.write(`Spot ${s.spotChangePct >= 0 ? "+" : ""}${s.spotChangePct}% · IV ${s.ivChangePct >= 0 ? "+" : ""}${s.ivChangePct}% · T-${s.daysPassed}d · Rate Δ ${s.rateChangePct >= 0 ? "+" : ""}${s.rateChangePct}%\n`);
     process.stdout.write(`as of ${new Date().toISOString()}\n\n`);
     process.stdout.write(`Estimated P&L: ${usd(r.totalEstimatedPnlUsd)}\n`);
-    process.stdout.write(`  delta: ${usd(r.greekDecomposition.deltaUsd)} · gamma: ${usd(r.greekDecomposition.gammaUsd)} · theta: ${usd(r.greekDecomposition.thetaUsd)} · vega: ${usd(r.greekDecomposition.vegaUsd)}\n\n`);
+    process.stdout.write(`  delta: ${usd(r.greekDecomposition.deltaUsd)} · gamma: ${usd(r.greekDecomposition.gammaUsd)} · theta: ${usd(r.greekDecomposition.thetaUsd)} · vega: ${usd(r.greekDecomposition.vegaUsd)} · rho: ${usd(r.greekDecomposition.rhoUsd)}\n\n`);
     if (r.perPosition.length) {
       printTable(
         r.perPosition.map((p) => ({

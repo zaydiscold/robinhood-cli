@@ -5999,6 +5999,7 @@ export async function computeWhatIf(opts: any = {}, deps: any = {}) {
     const spotPct = opts.spotPct ?? 0;
     const ivPct = opts.ivPct ?? 0;
     const days = opts.days ?? 0;
+    const rateChangePct = opts.rateChangePct ?? 0;
     const accts = await listOwnedTradingAccounts(getJson, opts.accountNumber);
     const allPositions = [];
     for (const { acct } of accts) {
@@ -6046,10 +6047,10 @@ export async function computeWhatIf(opts: any = {}, deps: any = {}) {
         warnings.push(`spot price resolution failed: ${(e as Error).message.slice(0, 60)}`);
     }
     const perPosition = [];
-    let totalPnl = 0, totalDelta = 0, totalGamma = 0, totalTheta = 0, totalVega = 0;
-    let totalDeltaPnl = 0, totalGammaPnl = 0, totalThetaPnl = 0, totalVegaPnl = 0;
+    let totalPnl = 0, totalDelta = 0, totalGamma = 0, totalTheta = 0, totalVega = 0, totalRho = 0;
+    let totalDeltaPnl = 0, totalGammaPnl = 0, totalThetaPnl = 0, totalVegaPnl = 0, totalRhoPnl = 0;
     for (const pos of allPositions) {
-        let netDelta = 0, netGamma = 0, netTheta = 0, netVega = 0, mktVal = 0;
+        let netDelta = 0, netGamma = 0, netTheta = 0, netVega = 0, netRho = 0, mktVal = 0;
         for (const leg of pos.legs) {
             const mark = optMarks.get(leg.optionId) ?? {};
             const sign = leg.side === "short" ? -1 : 1;
@@ -6058,10 +6059,13 @@ export async function computeWhatIf(opts: any = {}, deps: any = {}) {
             const gamma = n(mark.gamma) * sign * ratio * 100;
             const theta = n(mark.theta) * sign * ratio * 100;
             const vega = n(mark.vega) * sign * ratio * 100;
+            const rawRho = n(mark.rho);
+            const rho = Number.isFinite(rawRho) ? rawRho * sign * ratio * 100 : 0;
             netDelta += delta;
             netGamma += gamma;
             netTheta += theta;
             netVega += vega;
+            netRho += rho;
             const markPrice = n(mark.adjusted_mark_price ?? mark.mark_price);
             if (Number.isFinite(markPrice))
                 mktVal += Math.abs(markPrice * 100 * ratio);
@@ -6076,19 +6080,23 @@ export async function computeWhatIf(opts: any = {}, deps: any = {}) {
         const thetaPnl = netTheta * days; // netTheta is daily $ decay × contracts × 100
         // netVega is $ per 1 percentage-point IV change × contracts × 100 — multiply by IV points directly
         const vegaPnl = netVega * ivPct;
-        const estPnl = deltaPnl + gammaPnl + thetaPnl + vegaPnl;
-        perPosition.push({ symbol: pos.symbol, description: pos.description, estimatedPnlUsd: round2(estPnl), marketValueUsd: round2(mktVal), netDelta: round2(netDelta), netGamma: round2(netGamma), netTheta: round2(netTheta), netVega: round2(netVega) });
+        // netRho is $ per 1 percentage-point rate change × contracts × 100 — multiply by rate change points directly
+        const rhoPnl = Number.isFinite(netRho) ? netRho * rateChangePct : 0;
+        const estPnl = deltaPnl + gammaPnl + thetaPnl + vegaPnl + rhoPnl;
+        perPosition.push({ symbol: pos.symbol, description: pos.description, estimatedPnlUsd: round2(estPnl), marketValueUsd: round2(mktVal), netDelta: round2(netDelta), netGamma: round2(netGamma), netTheta: round2(netTheta), netVega: round2(netVega), netRho: round2(netRho) });
         totalPnl += estPnl;
         totalDelta += netDelta;
         totalGamma += netGamma;
         totalTheta += netTheta;
         totalVega += netVega;
+        totalRho += netRho;
         totalDeltaPnl += deltaPnl;
         totalGammaPnl += gammaPnl;
         totalThetaPnl += thetaPnl;
         totalVegaPnl += vegaPnl;
+        if (Number.isFinite(rhoPnl)) totalRhoPnl += rhoPnl;
     }
-    return { accountsScanned: accts.map((a: any) => "…" + a.acct.slice(-4)), scenario: { spotChangePct: spotPct, ivChangePct: ivPct, daysPassed: days }, totalEstimatedPnlUsd: round2(totalPnl), greekDecomposition: { deltaUsd: round2(totalDeltaPnl), gammaUsd: round2(totalGammaPnl), thetaUsd: round2(totalThetaPnl), vegaUsd: round2(totalVegaPnl) }, perPosition, warnings };
+    return { accountsScanned: accts.map((a: any) => "…" + a.acct.slice(-4)), scenario: { spotChangePct: spotPct, ivChangePct: ivPct, daysPassed: days, rateChangePct }, totalEstimatedPnlUsd: round2(totalPnl), totalRho: round2(totalRho), greekDecomposition: { deltaUsd: round2(totalDeltaPnl), gammaUsd: round2(totalGammaPnl), thetaUsd: round2(totalThetaPnl), vegaUsd: round2(totalVegaPnl), rhoUsd: round2(totalRhoPnl) }, perPosition, warnings };
 }
 /**
  * Event calendar: upcoming option expirations, ex-dividend dates, earnings dates.
@@ -6287,7 +6295,8 @@ export async function computeAutopilot(opts: any = {}, deps: any = {}) {
                     const spot = spotBySymbol.get(p.symbol) ?? Number.NaN;
                     const itmBy = Number.isFinite(spot) && Number.isFinite(strike) ? (optType === "call" ? spot - strike : strike - spot) : null;
                     const betterStrike = strike;
-                    const expDate = new Date(leg.expiration_date);
+                    const expDateParts = leg.expiration_date.split('-').map(Number);
+                    const expDate = new Date(expDateParts[0], expDateParts[1] - 1, expDateParts[2]);
                     const nextFriday = new Date(expDate.getTime() + 7 * 86_400_000);
                     nextFriday.setDate(nextFriday.getDate() + ((5 + 7 - nextFriday.getDay()) % 7));
                     const targetExp = nextFriday.toISOString().slice(0, 10);

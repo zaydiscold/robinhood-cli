@@ -1630,17 +1630,18 @@ server.registerTool(
   {
     title: "Robinhood What-If Scenario Calculator",
     description:
-      "Greeks scenario calculator: apply spot ±X%, IV ±N%, T - N days to current portfolio Greeks (from live marketdata/options/) and compute estimated P&L per position and total via Taylor approximation (ΔP ≈ delta·ΔS + ½gamma·ΔS² + theta·Δt + vega·Δσ). Same shared engine as the CLI `whatif` command. Live read; no gate.",
+      "Greeks scenario calculator: apply spot ±X%, IV ±N%, T - N days, rate ±P% to current portfolio Greeks (from live marketdata/options/) and compute estimated P&L per position and total via Taylor approximation (ΔP ≈ delta·ΔS + ½gamma·ΔS² + theta·Δt + vega·Δσ + rho·Δr). Same shared engine as the CLI `whatif` command. Live read; no gate.",
     inputSchema: z.object({
       account_number: z.string().optional(),
       spot_pct: z.number().default(0),
       iv_pct: z.number().default(0),
-      days: z.number().int().default(0)
+      days: z.number().int().default(0),
+      rate_change_pct: z.number().default(0)
     }),
     annotations: toolAnnotations(true, "read")
   },
-  async ({ account_number, spot_pct, iv_pct, days }) => {
-    try { return jsonResponse(await computeWhatIf({ accountNumber: account_number, spotPct: spot_pct, ivPct: iv_pct, days })); }
+  async ({ account_number, spot_pct, iv_pct, days, rate_change_pct }) => {
+    try { return jsonResponse(await computeWhatIf({ accountNumber: account_number, spotPct: spot_pct, ivPct: iv_pct, days, rateChangePct: rate_change_pct })); }
     catch (e: any) { return jsonResponse({ error: e.message }); }
   }
 );

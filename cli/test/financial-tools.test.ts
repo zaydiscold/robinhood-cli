@@ -513,7 +513,7 @@ const whatIfFix = () => buildFixture({
   optionMarks: {
     "optP1": {
       instrument_id: "optP1", adjusted_mark_price: "3.00", mark_price: "3.00",
-      delta: "-0.25", gamma: "0.02", theta: "-0.05", vega: "0.10"
+      delta: "-0.25", gamma: "0.02", theta: "-0.05", vega: "0.10", rho: "-0.03"
     }
   },
   instruments: [{ id: "iidA", symbol: "AAA" }],
@@ -549,7 +549,7 @@ describe("computeWhatIf — Greeks scenario P&L calculator", () => {
   it("scenario zero returns totalPnl = 0", async () => {
     const r = await computeWhatIf({}, whatIfFix());
     expect(r.totalEstimatedPnlUsd).toBe(0);
-    expect(r.scenario).toEqual({ spotChangePct: 0, ivChangePct: 0, daysPassed: 0 });
+    expect(r.scenario).toEqual({ spotChangePct: 0, ivChangePct: 0, rateChangePct: 0, daysPassed: 0 });
   });
 
   it("per-position breakdown includes netGreeks and estimated P&L", async () => {
@@ -659,6 +659,15 @@ describe("computeWhatIf — Greeks scenario P&L calculator", () => {
     expect(r).toBeTruthy();
     expect(r.warnings).toBeDefined();
     // No crash is the key assertion
+  });
+
+  it("computes rho P&L from rate change: netRho × rateChangePct", async () => {
+    // Short put: raw rho = -0.03 × sign(-1) × ratio(1) × qty(1) × 100 = +3 netRho
+    // rateChangePct = 2 (2% rate increase) → rhoPnl = 3 × 2 = 6
+    const r = await computeWhatIf({ rateChangePct: 2 }, whatIfFix());
+    expect(r.greekDecomposition.rhoUsd).toBe(6);
+    expect(r.totalRho).toBe(3);
+    expect(r.totalEstimatedPnlUsd).toBe(6);
   });
 });
 
@@ -1175,11 +1184,8 @@ describe("computeAutopilot — short option roll candidates near expiration", ()
     expect(r.candidates).toHaveLength(0);
   });
 
-  it.skip("computes estimated net credit from live option quotes (open bid - close ask)", async () => {
+  it("computes estimated net credit from live option quotes (open bid - close ask)", async () => {
     const r = await computeAutopilot({ days: 10 }, autopilotFix());
-
-    // Debug: check warnings
-    if (r.warnings.length > 0) console.error("WARNINGS:", JSON.stringify(r.warnings));
 
     // AAA call: open bid $3.20 - close ask $1.55 = $1.65 net credit
     const aaa = r.candidates.find((c) => c.symbol === "AAA")!;
@@ -1195,7 +1201,7 @@ describe("computeAutopilot — short option roll candidates near expiration", ()
     expect(bbb.rollCandidate.message).toContain("2.25");
   });
 
-  it.skip("flags netCreditCanBeNegative when roll results in net debit", async () => {
+  it("flags netCreditCanBeNegative when roll results in net debit", async () => {
     const fix = buildFixture({
       accounts: { results: [{ type: "rhs", account_number: "111111111", account_name: "Main" }] },
       optionAggregates: {
