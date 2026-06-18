@@ -83,7 +83,8 @@ grain of the tool:
 
 - **Prefer the first-class command over raw `brokerage execute`.** `portfolio`, `positions`, `quote`,
   `options chain/positions/enumerate/holdings/inspect`, `accounts`, `history`, `watchlist`, `recurring`,
-  `settings`, `stock profile` do the multi-step join + query params for you. `brokerage execute` is the
+  `settings`, `stock profile`, `pretrade`, `income`, `risk`, `whatif`, `calendar`, `exposure`, `autopilot`,
+  `search` do the multi-step join + query params for you. `brokerage execute` is the
   fallback for an unwrapped route — and it **can't take `?query=` params** (top time-waster).
 - **Money questions → DOLLARS, weighted by size, one command:** `portfolio` (`--day` / `--after-hours`).
   Never a size-blind percent leaderboard.
@@ -579,10 +580,10 @@ ROBINHOOD_ALLOW_LIVE_WRITE=1 robinhood-cli brokerage execute \
   "https://bonfire.robinhood.com/recurring_schedules/{0}/" --method PATCH \
   --param 0=<SCHEDULE_ID> --body-json '{"state":"active"}' --live-write   # PAUSE: "paused"
 
-# DRIP — toggle dividend reinvestment per account (PATCH, body {"drip_enrolled": true|false}):
+# DRIP — toggle dividend reinvestment per account (PATCH, body {"drip_enabled": true|false}):
 robinhood-cli brokerage execute \
-  "https://api.robinhood.com/corp_actions/drip/enrollment/{num}/" --method PATCH \
-  --param account_number=<ACCOUNT_NUMBER> --body-json '{"drip_enrolled":true}'   # dry-run unless gated
+  "https://api.robinhood.com/corp_actions/drip/account_settings/{num}/" --method PATCH \
+  --param account_number=<ACCOUNT_NUMBER> --body-json '{"drip_enabled":true}'   # dry-run unless gated
 
 # CANCEL an order (POST, no body):
 robinhood-cli brokerage execute \
@@ -628,8 +629,8 @@ profile reads, brokerage plan/execute, and crypto routes/sign/plan/execute). `ro
 run the same shared engine as the CLI commands — pending-order dedup (5-min window; `force: true` skips),
 `ref_id` idempotency, OTC/fractional guard, and trading-log append all apply identically. A running server advertises
 its old count until reloaded — `/reload-mcp` after pulling (live truth: `tools/list`).
-Same engine → same auth, gate, and method-aware routing as the CLI. The MCP mirrors the CLI gate: `liveWrite: true` plus
-`ROBINHOOD_ALLOW_LIVE_WRITE=1` to send a write; otherwise forced dry-run.
+Same engine → same auth, gate, and method-aware routing as the CLI. The MCP uses the single-switch model: set
+`ROBINHOOD_ALLOW_LIVE_WRITE=1` in the server's environment to send writes; otherwise forced dry-run. No per-call `liveWrite` required — the env variable is the sole gate (`dryRun: true` still previews any call even when the switch is on).
 
 ---
 

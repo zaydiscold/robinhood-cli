@@ -12,6 +12,12 @@ import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { resolve as resolvePath } from "node:path";
 import {
+  computeAutopilot,
+  computeCalendar,
+  computeExposure,
+  computeIncome,
+  computeRisk,
+  computeWhatIf,
   buildAccountContextUrl,
   buildOptionsContractLinkBundle,
   buildOptionsContractNavigationPlan,
@@ -3497,6 +3503,183 @@ program
     // Pending kosher rolls are two-day trades that outlive sessions — surface them wherever rolling context appears.
     const pendingRolls = listPendingRolls();
     if (pendingRolls.length) process.stdout.write(`\n⏳ ${pendingRolls.length} pending kosher roll(s) — run roll-ledger list\n`);
+  });
+
+// ── income: combined income engine (dividends + option premium) ──
+program
+  .command("income")
+  .description("Combined income engine: dividends + option premium net of debits, broken down by month, with TTM total, monthly average, and projected annual run-rate. Math done in-engine — do not hand-compute. Live read.")
+  .option("--account <number>", "scope to one account (default: all owned)")
+  .option("--year <yyyy>", "focus on a year (default: current year)")
+  .option("--json", "emit JSON")
+  .action(async (opts: { account?: string; year?: string; json?: boolean }) => {
+    const r = await computeIncome({ accountNumber: opts.account, year: opts.year ? Number(opts.year) : undefined });
+    if (opts.json) { printJson({ generatedAt: new Date().toISOString(), ...r }); return; }
+    process.stdout.write(`Combined Income — ${r.accountsScanned.length} account(s) — ${r.year}\n`);
+    process.stdout.write(`as of ${new Date().toISOString()}\n\n`);
+    process.stdout.write(`TTM: ${usd(r.ttmTotalUsd)} total (divs ${usd(r.dividendsTtmUsd)} + premium ${usd(r.optionPremiumTtmUsd)})\n`);
+    process.stdout.write(`Monthly avg: ${usd(r.monthlyAverageUsd)} · projected annual: ${usd(r.projectedAnnualRunRateUsd)}\n\n`);
+    if (r.monthlyBreakdown.length) {
+      printTable(
+        r.monthlyBreakdown.map((m) => ({ month: m.month, dividends: usd(m.dividendsUsd), premium: usd(m.optionPremiumUsd), total: usd(m.totalUsd) })),
+        ["month", "dividends", "premium", "total"]
+      );
+    } else {
+      process.stdout.write("No income data for this period.\n");
+    }
+    if (r.warnings.length) process.stdout.write(`${r.warnings.map((w: string) => "⚠️  " + w).join("\n")}\n`);
+    if (r.notes?.length) process.stdout.write(`\n📝 ${r.notes.join("\n")}\n`);
+  });
+
+// ── risk: portfolio risk scanner ──
+program
+  .command("risk")
+  .description("Portfolio risk scanner: max loss per position, ITM assignment exposure, undercovered short legs, margin-call distance, and concentration warnings (>20% in one symbol). Live read.")
+  .option("--account <number>", "scope to one account (default: all owned)")
+  .option("--json", "emit JSON")
+  .action(async (opts: { account?: string; json?: boolean }) => {
+    const r = await computeRisk({ accountNumber: opts.account });
+    if (opts.json) { printJson({ generatedAt: new Date().toISOString(), ...r }); return; }
+    process.stdout.write(`Portfolio Risk — ${r.accountsScanned.length} account(s)\n`);
+    process.stdout.write(`Equity: ${usd(r.totalEquityUsd)} · Borrowed: ${usd(r.totalBorrowedUsd)}`);
+    if (r.marginCallDistancePct !== null) process.stdout.write(` · Margin-call buffer: ${r.marginCallDistancePct.toFixed(1)}%`);
+    process.stdout.write(`\nas of ${new Date().toISOString()}\n\n`);
+    if (r.concentrationWarnings.length) {
+      process.stdout.write("CONCENTRATION WARNINGS:\n");
+      for (const c of r.concentrationWarnings) process.stdout.write(`  ⚠️ ${c.message}\n`);
+      process.stdout.write("\n");
+    }
+    if (r.positions.length) {
+      printTable(
+        r.positions.map((p) => ({
+          kind: p.kind, symbol: p.symbol, desc: p.description.slice(0, 50), side: p.side, qty: p.quantity,
+          mktVal: usd(p.marketValueUsd), maxLoss: p.maxLossUsd !== null ? usd(p.maxLossUsd) : "unlimited",
+          itmRisk: p.itmExpirationRisk ? "⚠️" : "", undercovered: p.undercoveredShortLegs || "",
+          acct: `…${p.account.slice(-4)}`
+        })),
+        ["kind", "symbol", "desc", "side", "qty", "mktVal", "maxLoss", "itmRisk", "undercovered", "acct"]
+      );
+    } else {
+      process.stdout.write("No open positions.\n");
+    }
+    if (r.warnings.length) process.stdout.write(`${r.warnings.map((w: string) => "⚠️  " + w).join("\n")}\n`);
+  });
+
+// ── whatif: greeks scenario calculator ──
+program
+  .command("whatif")
+  .description("Greeks scenario calculator: apply spot ±X%, IV ±N%, T - N days to portfolio Greeks and compute estimated P&L per position and total. Live read.")
+  .option("--account <number>", "scope to one account (default: all owned)")
+  .option("--spot-pct <pct>", "spot change in % (e.g. +5 or -3)", "0")
+  .option("--iv-pct <pct>", "IV change in % points (e.g. +10 or -5)", "0")
+  .option("--days <n>", "days of theta decay", "0")
+  .option("--json", "emit JSON")
+  .action(async (opts: { account?: string; spotPct?: string; ivPct?: string; days?: string; json?: boolean }) => {
+    const r = await computeWhatIf({
+      accountNumber: opts.account, spotPct: Number(opts.spotPct ?? "0"),
+      ivPct: Number(opts.ivPct ?? "0"), days: Number(opts.days ?? "0")
+    });
+    if (opts.json) { printJson({ generatedAt: new Date().toISOString(), ...r }); return; }
+    const s = r.scenario;
+    process.stdout.write(`What-If Scenario — ${r.accountsScanned.length} account(s)\n`);
+    process.stdout.write(`Spot ${s.spotChangePct >= 0 ? "+" : ""}${s.spotChangePct}% · IV ${s.ivChangePct >= 0 ? "+" : ""}${s.ivChangePct}% · T-${s.daysPassed}d\n`);
+    process.stdout.write(`as of ${new Date().toISOString()}\n\n`);
+    process.stdout.write(`Estimated P&L: ${usd(r.totalEstimatedPnlUsd)}\n`);
+    process.stdout.write(`  delta: ${usd(r.greekDecomposition.deltaUsd)} · gamma: ${usd(r.greekDecomposition.gammaUsd)} · theta: ${usd(r.greekDecomposition.thetaUsd)} · vega: ${usd(r.greekDecomposition.vegaUsd)}\n\n`);
+    if (r.perPosition.length) {
+      printTable(
+        r.perPosition.map((p) => ({
+          symbol: p.symbol, desc: p.description.slice(0, 40), estPnl: usd(p.estimatedPnlUsd),
+          mktVal: usd(p.marketValueUsd), delta: p.netDelta.toFixed(0), gamma: p.netGamma.toFixed(1),
+          theta: p.netTheta.toFixed(1), vega: p.netVega.toFixed(1)
+        })),
+        ["symbol", "desc", "estPnl", "mktVal", "delta", "gamma", "theta", "vega"]
+      );
+    } else {
+      process.stdout.write("No option positions to scenario-model.\n");
+    }
+    if (r.warnings.length) process.stdout.write(`${r.warnings.map((w: string) => "⚠️  " + w).join("\n")}\n`);
+  });
+
+// ── calendar: event calendar ──
+program
+  .command("calendar")
+  .description("Event calendar: upcoming option expirations, ex-dividend dates, and earnings dates (if available). Sorted by date with assignment-risk flags. Live read.")
+  .option("--account <number>", "scope to one account (default: all owned)")
+  .option("--days <n>", "look-ahead in days (default: 30)", "30")
+  .option("--json", "emit JSON")
+  .action(async (opts: { account?: string; days?: string; json?: boolean }) => {
+    const r = await computeCalendar({ accountNumber: opts.account, days: Number(opts.days ?? "30") });
+    if (opts.json) { printJson({ generatedAt: new Date().toISOString(), ...r }); return; }
+    process.stdout.write(`Event Calendar — next ${r.days} day(s) — ${r.accountsScanned.length} account(s)\n`);
+    process.stdout.write(`as of ${new Date().toISOString()}\n\n`);
+    if (r.events.length) {
+      printTable(
+        r.events.map((e) => ({
+          date: e.date, type: e.type, symbol: e.symbol, detail: e.detail.slice(0, 60),
+          risk: e.assignmentRisk ? "⚠️ ASSIGN" : ""
+        })),
+        ["date", "type", "symbol", "detail", "risk"]
+      );
+    } else {
+      process.stdout.write("No upcoming events in this window.\n");
+    }
+    if (r.warnings.length) process.stdout.write(`${r.warnings.map((w: string) => "⚠️  " + w).join("\n")}\n`);
+  });
+
+// ── exposure: concentration & net greeks ──
+program
+  .command("exposure")
+  .description("Concentration & Net Greeks: concentration by underlying (% of portfolio per symbol, flag >20%), plus portfolio-wide net Greeks (delta/gamma/theta/vega/rho). Live read.")
+  .option("--account <number>", "scope to one account (default: all owned)")
+  .option("--json", "emit JSON")
+  .action(async (opts: { account?: string; json?: boolean }) => {
+    const r = await computeExposure({ accountNumber: opts.account });
+    if (opts.json) { printJson({ generatedAt: new Date().toISOString(), ...r }); return; }
+    process.stdout.write(`Exposure — ${r.accountsScanned.length} account(s) · equity ${usd(r.totalEquityUsd)}\n`);
+    process.stdout.write(`as of ${new Date().toISOString()}\n\n`);
+    process.stdout.write("Portfolio Net Greeks:\n");
+    const g = r.netGreeks;
+    process.stdout.write(`  delta: ${g.delta.toFixed(1)} · gamma: ${g.gamma.toFixed(1)} · theta: ${g.theta.toFixed(2)} · vega: ${g.vega.toFixed(2)} · rho: ${g.rho.toFixed(2)}\n\n`);
+    if (r.concentration.length) {
+      process.stdout.write("Concentration by Underlying:\n");
+      printTable(
+        r.concentration.map((c) => ({
+          symbol: c.symbol, mktVal: usd(c.marketValueUsd), weight: `${c.weightPct.toFixed(1)}%`,
+          flag: c.flag ? ">20% ⚠️" : ""
+        })),
+        ["symbol", "mktVal", "weight", "flag"]
+      );
+    } else {
+      process.stdout.write("No positions.\n");
+    }
+    if (r.warnings.length) process.stdout.write(`${r.warnings.map((w: string) => "⚠️  " + w).join("\n")}\n`);
+  });
+
+// ── autopilot: automated roll management ──
+program
+  .command("autopilot")
+  .description("Autopilot: scan all open short options approaching expiration (default: 7 days), compute potential roll candidates, emit dry-run order bodies. Read-only (never places orders).")
+  .option("--account <number>", "scope to one account (default: all owned)")
+  .option("--days <n>", "look-ahead window in days (default: 7)", "7")
+  .option("--json", "emit JSON")
+  .action(async (opts: { account?: string; days?: string; json?: boolean }) => {
+    const r = await computeAutopilot({ accountNumber: opts.account, days: Number(opts.days ?? "7") });
+    if (opts.json) { printJson({ generatedAt: new Date().toISOString(), ...r }); return; }
+    process.stdout.write(`Autopilot — next ${r.lookaheadDays} day(s) — ${r.accountsScanned.length} account(s)\n`);
+    process.stdout.write(`as of ${new Date().toISOString()}\n\n`);
+    if (r.candidates.length) {
+      for (const c of r.candidates) {
+        process.stdout.write(`${c.symbol} ${c.type} $${c.strike} exp ${c.expiration} (${c.dte}d)${c.itmBy !== null ? ` — ${c.itmBy > 0 ? `ITM by $${c.itmBy.toFixed(2)}` : `OTM by $${Math.abs(c.itmBy).toFixed(2)}`}` : ""}\n`);
+        process.stdout.write(`  ${c.rollCandidate.message}\n`);
+        process.stdout.write(`  close: ${c.dryRunOrder.close.action} [${c.dryRunOrder.close.leg}]\n`);
+        process.stdout.write(`  open:  ${c.dryRunOrder.open.action} [${c.dryRunOrder.open.leg}]\n\n`);
+      }
+      process.stdout.write(`${r.candidates.length} candidate(s). These are dry-run only — nothing was sent. To execute, use the brokerage execute command with ROBINHOOD_ALLOW_LIVE_WRITE=1.\n`);
+    } else {
+      process.stdout.write("No short options approaching expiration in this window.\n");
+    }
+    if (r.warnings.length) process.stdout.write(`${r.warnings.map((w: string) => "⚠️  " + w).join("\n")}\n`);
   });
 
 const watchlist = new Command("watchlist").description("Inspect (read) and edit (add/remove/create, env-gated) your custom watchlists");
