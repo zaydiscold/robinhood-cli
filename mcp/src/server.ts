@@ -35,6 +35,7 @@ import {
   brokerageGetJson,
   brokerageGetAllResults,
   computePortfolioPnl,
+  getUnifiedHistory,
   computeDividends,
   computeTradeReview,
   addTradeNote,
@@ -1326,13 +1327,8 @@ server.registerTool(
     annotations: toolAnnotations(true, "read")
   },
   async ({ account_number, limit }) => {
-    const eqUrl = "https://api.robinhood.com/orders/";
-    const eq = await tryBrokerageGetJson(eqUrl, {}, account_number ? { account_number } : {});
-    const opt = await tryBrokerageGetJson("https://api.robinhood.com/options/orders/");
-    return jsonResponse({
-      equityOrders: eq.ok ? (eq.data.results ?? []).slice(0, limit) : { error: eq.error },
-      optionOrders: opt.ok ? (opt.data.results ?? []).slice(0, limit) : { error: opt.error }
-    });
+    const events = await getUnifiedHistory({ accountNumber: account_number });
+    return jsonResponse({ events: events.slice(0, limit) });
   }
 );
 

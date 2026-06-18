@@ -6494,5 +6494,57 @@ export async function computeAutopilot(opts: any = {}, deps: any = {}) {
     }
     candidates.sort((a, b) => a.dte - b.dte);
     return { accountsScanned: accts.map((a: any) => "…" + a.acct.slice(-4)), lookaheadDays: lookahead, candidates, warnings };
-}
-// Zayd Khan // cold // www.zayd.wtf
+    }
+
+    /** Unified transaction history: equity + options + crypto orders + ACH transfers, newest first. */
+    export async function getUnifiedHistory(
+    opts: { days?: number; accountNumber?: string },
+    deps: { getJson?: typeof brokerageGetJson; now?: () => number } = {}
+    ): Promise<Array<{ time: string; kind: string; summary: string; state: string }>> {
+    const getJson = deps.getJson ?? brokerageGetJson;
+    const now = deps.now ?? Date.now;
+    const days = Math.max(1, opts.days ?? 3);
+    const cutoffMs = now() - days * 86400000;
+    const inWindow = (ts: unknown): boolean => {
+      const t = Date.parse(String(ts ?? ""));
+      return Number.isFinite(t) && t >= cutoffMs;
+    };
+    const events: Array<{ time: string; kind: string; summary: string; state: string }> = [];
+
+    // Equity orders
+    const eq = await tryBrokerageGetJson(
+      `https://api.robinhood.com/orders/${opts.accountNumber ? `?account_number=${encodeURIComponent(opts.accountNumber)}` : ""}`
+    );
+    if (eq.ok) for (const r of ((eq.data as any)?.results ?? [])) {
+      const t = r.updated_at ?? r.created_at;
+      if (inWindow(t)) events.push({ time: String(t), kind: "equity", summary: `${r.side ?? "?"} ${r.quantity ?? "?"} @ ${r.average_price ?? r.price ?? "?"}`, state: String(r.state ?? "?") });
+    }
+
+    // Options orders
+    const op = await tryBrokerageGetJson(
+      `https://api.robinhood.com/options/orders/${opts.accountNumber ? `?account_numbers=${encodeURIComponent(opts.accountNumber)}` : ""}`
+    );
+    if (op.ok) for (const r of ((op.data as any)?.results ?? [])) {
+      const t = r.updated_at ?? r.created_at;
+      if (inWindow(t)) events.push({ time: String(t), kind: "option", summary: `${r.chain_symbol ?? "?"} ${r.opening_strategy ?? r.closing_strategy ?? ""} ${r.direction ? `(${r.direction})` : ""} ${r.quantity ?? ""} @ ${r.price ?? "?"}`.trim(), state: String(r.state ?? "?") });
+    }
+
+    // Crypto orders
+    const cx = await tryBrokerageGetJson("https://nummus.robinhood.com/orders/");
+    if (cx.ok) for (const r of ((cx.data as any)?.results ?? [])) {
+      const t = r.updated_at ?? r.created_at;
+      if (inWindow(t)) events.push({ time: String(t), kind: "crypto", summary: `${r.side ?? "?"} ${r.quantity ?? "?"} @ ${r.average_price ?? r.price ?? "?"}`, state: String(r.state ?? "?") });
+    }
+
+    // ACH transfers
+    const ach = await tryBrokerageGetJson("https://api.robinhood.com/ach/transfers/");
+    if (ach.ok) for (const r of ((ach.data as any)?.results ?? [])) {
+      const t = r.updated_at ?? r.created_at;
+      if (inWindow(t)) events.push({ time: String(t), kind: "transfer", summary: `${r.direction ?? "?"} ${r.amount ?? "?"}`, state: String(r.state ?? "?") });
+    }
+
+    events.sort((a, b) => Date.parse(b.time) - Date.parse(a.time));
+    return events;
+    }
+
+    // Zayd Khan // cold // www.zayd.wtf
