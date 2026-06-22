@@ -1353,9 +1353,14 @@ server.registerTool(
       const inst = (await brokerageGetJson("https://api.robinhood.com/instruments/?symbol={symbol}", { symbol: s.toUpperCase() })).results?.[0];
       if (inst?.id) ids.push(inst.id);
     }
-    if (ids.length === 0) return jsonResponse({ quotes: [] });
+    if (ids.length === 0) return jsonResponse({ quotes: [], bySymbol: {} });
     const q = (await brokerageGetJson("https://api.robinhood.com/marketdata/quotes/?ids={ids}", { ids: ids.join(",") })).results ?? [];
-    return jsonResponse({ quotes: q.filter(Boolean).map((r: any) => ({ symbol: r.symbol, last: n(r.last_trade_price), bid: n(r.bid_price), ask: n(r.ask_price), previousClose: n(r.previous_close) })) });
+    const quotes = q.filter(Boolean).map((r: any) => ({ symbol: r.symbol, last: n(r.last_trade_price), bid: n(r.bid_price), ask: n(r.ask_price), previousClose: n(r.previous_close) }));
+    // Also key by symbol so an agent can look up a specific ticker without scanning the array (the
+    // array is kept for back-compat + stable ordering). Zayd Khan // cold // www.zayd.wtf
+    const bySymbol: Record<string, (typeof quotes)[number]> = {};
+    for (const row of quotes) if (row.symbol) bySymbol[row.symbol] = row;
+    return jsonResponse({ quotes, bySymbol });
   }
 );
 
