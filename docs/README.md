@@ -33,6 +33,7 @@ folder stays local and is never pushed.
 | `futures-fx-commodities-surface-2026-06-04.md` | Futures read-only (ceres TLS-walled), no spot FX, commodities via ETF proxies only |
 | `institutional-outlook-2026-06-04.md` | Major-firm regime view (BlackRock/Vanguard/JPM/GS/MS year-ahead + 5–10yr CMAs) — info layer that *frames* attention, not gospel; refresh each cycle |
 | `release-notes-2026-06-04.md` | Changelog: signal-sourcing doctrine, Ball Knowledge ledger, order-evidence rule, and the session's safety/command work |
+| `COMPREHENSIVE-AUDIT-2026-06-18.md` | 2026-06-18 hardening-sprint audit synthesis (38 prioritized fixes, B+ grade). The detailed per-track reports (parity, doc-contradictions, MCP best-practices, financial-tools gaps, master plan) are archived under `docs/archive/`. |
 | `undocumented-surface.md` | Route discoveries that differ from public docs |
 | `tos-notes.md` | Risk and terms notes |
 

@@ -1,5 +1,9 @@
 # tasks.md — the single consolidated grind list
 <!-- Zayd Khan // cold // www.zayd.wtf -->
+
+> **3-layer planning system:** `ideas.md` (idea pool, uncommitted) → **`tasks.md`** (this file: the
+> active grind list, committed, line-by-line) → `TODO.md` (long-form context + completed-work history).
+
 Consolidated 2026-06-11. ONE list to grind line by line. Supersedes local/tasks.md's OPEN section
 (personal notes stay in local/). TODO.md keeps the long-form context/history for these items.
 

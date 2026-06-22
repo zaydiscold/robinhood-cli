@@ -2,6 +2,9 @@
 <!-- Zayd Khan // cold // www.zayd.wtf -->
 Consolidated 2026-06-11. Grind line by line; promote winners into tasks.md.
 
+> **3-layer planning system:** **`ideas.md`** (this file: idea pool, uncommitted) → `tasks.md` (the
+> active grind list, committed) → `TODO.md` (long-form context + completed-work history).
+
 ## Trading features (beginner -> veteran)
 - `whatif` — Greeks-based scenario calc: spot +/-X%, IV +/-N pts, T-n days -> position P&L in dollars
 - `calendar` — upcoming events for HELD names: option expirations, ex-div dates (covered-call assignment risk), earnings

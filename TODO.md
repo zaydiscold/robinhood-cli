@@ -1,5 +1,9 @@
 # TODO — robinhood-cli hardening roadmap
 
+> **3-layer planning system:** `ideas.md` (idea pool, uncommitted) → `tasks.md` (the active grind
+> list, committed) → **`TODO.md`** (this file: long-form context + completed-work `[x]` history).
+> Promote ideas → tasks; keep the "why" and the done-record here.
+
 ## ⏰ TRIGGER AT MARKET OPEN — custom-watchlist $1 basket (added 2026-06-15)
 
 - [ ] **Place the $1 watchlist basket at the next regular open.** Fractional dollar orders are

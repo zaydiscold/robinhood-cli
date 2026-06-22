@@ -24,14 +24,14 @@ Five parallel audit agents swept the entire robinhood-cli project (66 MCP tools,
 | C: MCP Best Practices | Agent C | ✅ Complete | 6 recommendations (2 high, 2 medium, 2 low) |
 | D: Financial Tools Gaps | Agent D | ✅ Complete | 5 P0 tools spec'd, 20-item roadmap |
 | E: Repo Quality + DX | Agent E | ✅ Complete | 20 fixes prioritized (2 high vulns, 4 high, rest medium/low) |
-| Master Plan | PM (me) | ✅ Complete | `docs/audit-master-plan-2026-06-18.md` |
+| Master Plan | PM (me) | ✅ Complete | `docs/archive/audit-master-plan-2026-06-18.md` |
 
 All agent reports written to `docs/` and `local/`:
-- `docs/doc-contradiction-audit-2026-06-18.md` (450 lines)
-- `docs/mcp-best-practices-audit-2026-06-18.md` (this file)
-- `docs/financial-tools-gap-analysis-2026-06-18.md` (425 lines)
+- `docs/archive/doc-contradiction-audit-2026-06-18.md` (450 lines)
+- `docs/archive/mcp-best-practices-audit-2026-06-18.md` (this file)
+- `docs/archive/financial-tools-gap-analysis-2026-06-18.md` (425 lines)
 - `local/audit-dx-report-2026-06-18.md` (343 lines)
-- `docs/audit-master-plan-2026-06-18.md` (plan document)
+- `docs/archive/audit-master-plan-2026-06-18.md` (plan document)
 
 ---
 
@@ -169,7 +169,7 @@ These 5 tools are read-only, use live-verified endpoints, follow the shared-engi
 | `calendar` | Upcoming events: expirations, ex-div, earnings for held names | ~250 | MEDIUM-HIGH |
 | `exposure` | Concentration by underlying/sector + net Greeks | ~350 | HIGH |
 
-Full specs in `docs/financial-tools-gap-analysis-2026-06-18.md`.
+Full specs in `docs/archive/financial-tools-gap-analysis-2026-06-18.md`.
 
 ---
 
@@ -198,7 +198,7 @@ Full specs in `docs/financial-tools-gap-analysis-2026-06-18.md`.
 | 19 | README | Missing `order watch` from coverage table (NEW) | Add or remove from promises |
 | 20 | AGENTS.md | Missing `pretrade` from TL;DR section (NEW) | Add pretrade to quick reference |
 
-Full resolutions in `docs/doc-contradiction-audit-2026-06-18.md`.
+Full resolutions in `docs/archive/doc-contradiction-audit-2026-06-18.md`.
 
 ---
 
